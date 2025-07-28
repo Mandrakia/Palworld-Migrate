@@ -81,8 +81,97 @@ export const EntitySchemas: Record<string, EntityMeta> = {
             "CharacterContainers":{
                 path: ["properties", "worldSaveData", "value", "CharacterContainerSaveData", "value"],
                 type: "CharacterContainer[]"
+            },
+            "Groups":{
+                path: ["properties", "worldSaveData", "value", "GroupSaveDataMap", "value"],
+                type: "Group[]"
+            },
+            "BaseCamps":{
+                path: ["properties", "worldSaveData", "value", "BaseCampSaveData", "value"],
+                type: "BaseCamp[]"
             }
         }
+    },
+    "BaseCamp":{
+        properties:{
+            "Id":{
+                path: ["key"],
+                type: "string"
+            },
+            "ContainerId":{
+                path: ["value", "WorkerDirector","value", "RawData","value", "container_id"],
+                type: "string"
+            },
+            "GroupId":{
+                path:["value", "RawData", "value", "group_id_belong_to"],
+                type: "string"
+            },
+            "OwnerInstanceId":{
+                path:["value", "RawData", "value", "owner_map_object_instance_id"],
+                type: "string"
+            }
+        }
+    },
+    "GroupMember":{
+        properties:{
+            "PlayerId":{
+                path: ["guid"],
+                type: "string"
+            },
+            "InstanceId":{
+                path: ["instance_id"],
+                type: "string"
+            }
+        }
+    },
+    "Group":{
+        typeResolver:{
+            discriminatorPath: ["value","RawData","value","group_type"],
+            mapping:{
+                "EPalGroupType::Organization": "Organization",
+                "EPalGroupType::Guild": "Guild",
+                "default": "Group"
+            }
+        },
+        properties:{
+            "Id":{
+                type:"string",
+                path: ["key"]
+            },
+            "Members":{
+                type:"GroupMember[]",
+                path:["value","RawData","value", "individual_character_handle_ids"]
+            },
+            "Name":{
+                type:"string",
+                path:["value","RawData","value", "group_name"]
+            }
+        }
+    },
+    "Guild":{
+        baseType: "Group",
+        properties:{
+            "BaseIds":{
+                path: ["value","RawData","value","base_ids"],
+                type: "string[]"
+            },
+            MapBaseIds:{
+                path: ["value","RawData","value","map_object_instance_ids_base_camp_points"],
+                type: "string[]"
+            },
+            CampLevel:{
+                path: ["value","RawData","value","base_camp_level"],
+                type: "number"
+            },
+            GuildName:{
+                path: ["value","RawData","value","guild_name"],
+                type: "string"
+            }
+        }
+    },
+    "Organization":{
+        baseType: "Group",
+        properties:{}
     },
     "Character":{
         typeResolver:{

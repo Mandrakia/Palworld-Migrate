@@ -6,6 +6,7 @@ import {toFullPlayerCard, toPalCard} from "$lib/mappers";
 import type {Player} from "$save-edit/models/Player";
 import {Buff, getPalData, getPassive, palDatabase, PalDatabaseEntry} from "$lib/palDatabase";
 import type {ServerSave} from "$save-edit/models/ServerSave";
+import type {Guild} from "$save-edit/models/Guild";
 
 function splitGuids(encoded: string): [string, string] {
     // Parse base36 string as BigInt
@@ -42,7 +43,7 @@ function breed(pal1 : PalCardData, pal2 : PalCardData, serverSave : ServerSave) 
 
         // Find the pal with CombiRank closest to bFinal
         // If there's equality in distance, select the one with lowest CombiRank
-        closest = Object.values(palDatabase).sort((a, b) => {
+        closest = Object.values(palDatabase).filter(a=> a.Combinations.every(c=> c.ChildCharacterID !== a.Tribe.replace("EPalTribeID::",""))).sort((a, b) => {
             const distanceA = Math.abs(a.CombiRank - bFinal);
             const distanceB = Math.abs(b.CombiRank - bFinal);
 
@@ -132,8 +133,16 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 
         // Use fallback for PlayerId - try pWorld.PlayerId first, then pSave.PlayerUid
         const playerIdForFilter = pWorld.PlayerId || pSave.PlayerUid || 'unknown';
-        
-        const pals = serverSave.Characters.filter(a => a instanceof Pal && a.OwnerPlayerUId === playerIdForFilter && (a.ContainerId === pSave.PalStorageContainerId || a.ContainerId === pSave.CharacterPalsContainerId)).map(a => toPalCard(a as Pal, serverSave));
+
+        let playerContainers: string[] = [];
+        let guild = serverSave.Groups.find(group => group.Id === pWorld.GroupId) as Guild;
+        if(guild) {
+            playerContainers = guild.BaseIds.map(bId => serverSave.BaseCamps.find(x => x.Id === bId)!.ContainerId)
+        }
+        playerContainers.push(pSave.CharacterPalsContainerId);
+        playerContainers.push(pSave.PalStorageContainerId);
+        console.log(playerContainers);
+        const pals = serverSave.Characters.filter(a => a instanceof Pal && a.OwnerPlayerUId === playerId && playerContainers.includes(a.ContainerId)).map(a => toPalCard(a as Pal, serverSave));
 
         // Filter pals by gender
         const malePals = pals.filter(pal => pal.gender === "EPalGenderType::Male" && pal.characterId !== null);

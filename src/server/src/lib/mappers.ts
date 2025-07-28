@@ -4,6 +4,7 @@ import {Pal} from "$save-edit/models/Pal";
 import type {ServerSave} from "$save-edit/models/ServerSave";
 import type {CharacterSave} from "$save-edit/models/CharacterSave";
 import {getPalData, cleanElementType, cleanSizeType, cleanTribe, Buff, getPassive} from "$lib/palDatabase";
+import type {Guild} from "$save-edit/models/Guild";
 
 export function toPlayerCard(pWorld: Player, pSave: CharacterSave, serverSave: ServerSave) : PlayerCardData{
     const pals = serverSave.Characters.filter(a => a instanceof Pal) as Pal[];
@@ -109,7 +110,14 @@ export function toPalCard(pWorld: Pal, serverSave: ServerSave) : PalCardData{
 export function toFullPlayerCard(pWorld: Player, pSave: CharacterSave, serverSave: ServerSave) : FullPlayerCardData {
     // Use fallback for PlayerId - try pWorld.PlayerId first, then pSave.PlayerUid
     const playerId = pWorld.PlayerId || pSave.PlayerUid || 'unknown';
-    
-    const pals = serverSave.Characters.filter(a => a instanceof Pal && a.OwnerPlayerUId === playerId && (a.ContainerId === pSave.PalStorageContainerId || a.ContainerId === pSave.CharacterPalsContainerId)).map(a => toPalCard(a as Pal, serverSave));
+    let playerContainers: string[] = [];
+    let guild = serverSave.Groups.find(group => group.Id === pWorld.GroupId) as Guild;
+    if(guild) {
+        playerContainers = guild.BaseIds.map(bId => serverSave.BaseCamps.find(x => x.Id === bId)!.ContainerId)
+    }
+    playerContainers.push(pSave.CharacterPalsContainerId);
+    playerContainers.push(pSave.PalStorageContainerId);
+    console.log(playerContainers);
+    const pals = serverSave.Characters.filter(a => a instanceof Pal && a.OwnerPlayerUId === playerId && playerContainers.includes(a.ContainerId)).map(a => toPalCard(a as Pal, serverSave));
     return {...toPlayerCard(pWorld, pSave, serverSave), pals};
 }

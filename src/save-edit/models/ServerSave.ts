@@ -3,6 +3,9 @@ import { Character } from './Character';
 import { CharacterFactory } from './CharacterFactory';
 import { ItemContainer } from './ItemContainer';
 import { CharacterContainer } from './CharacterContainer';
+import { Group } from './Group';
+import { GroupFactory } from './GroupFactory';
+import { BaseCamp } from './BaseCamp';
 export class ServerSave extends JsonWrapper {
   constructor(node: any) {
     super(node);
@@ -26,5 +29,13 @@ export class ServerSave extends JsonWrapper {
 
   get CharacterContainers(): CharacterContainer[] {
     return this.getPath(["properties","worldSaveData","value","CharacterContainerSaveData","value"])?.map((x: any) => new CharacterContainer(x)) ?? [];
+  }
+
+  get Groups(): Group[] {
+    return this.getPath(["properties","worldSaveData","value","GroupSaveDataMap","value"])?.map((x: any) => GroupFactory.fromNode(x)) ?? [];
+  }
+
+  get BaseCamps(): BaseCamp[] {
+    return this.getPath(["properties","worldSaveData","value","BaseCampSaveData","value"])?.map((x: any) => new BaseCamp(x)) ?? [];
   }
 }

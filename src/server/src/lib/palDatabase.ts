@@ -50,6 +50,8 @@ export interface PalDatabaseEntry {
   WorkSuitability_Mining: number;
   WorkSuitability_Transport: number;
   WorkSuitability_MonsterFarm: number;
+    WorkSuitability_Cool: number;
+    WorkSuitability_ProductMedicine: number;
   IsBoss: boolean;
   Price: number;
   level: number;
