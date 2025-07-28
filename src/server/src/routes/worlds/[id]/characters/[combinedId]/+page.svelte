@@ -1,0 +1,665 @@
+<script lang="ts">
+	import type { PageData } from './$types';
+	import PlayerCard from '$lib/PlayerCard.svelte';
+	import { goto } from '$app/navigation';
+	import { getGenderType } from '$lib/genderUtils';
+    import {derived} from "svelte/store";
+
+	interface Props {
+		data: PageData;
+	}
+
+	let { data }: Props = $props();
+
+	// Sorting and filtering state
+	let sortBy = $state('ownedTime');
+	let sortOrder = $state('desc' as 'asc' | 'desc');
+	
+	// Filter state
+	let filterGender = $state('all' as 'all' | 'male' | 'female');
+	let filterBoss = $state('all' as 'all' | 'boss' | 'normal');
+	let filterElement = $state('all' as string); // 'all' or specific element type
+
+	function handlePalSelect(pal: any) {
+		// Could navigate to a detailed pal view if needed
+		console.log('Selected pal:', pal);
+	}
+
+	function goBackToWorld() {
+		goto(`/worlds/${data.worldId}`);
+	}
+
+	function formatDate(date?: Date): string {
+		if (!date) return 'Unknown';
+		return new Intl.DateTimeFormat('en-US', {
+			dateStyle: 'medium',
+			timeStyle: 'short'
+		}).format(new Date(date));
+	}
+
+	function getTalentIcon(talentName: string): string {
+		const icons: Record<string, string> = {
+			'HP': '❤️',
+			'Attack': '⚔️',
+			'Defense': '🛡️'
+		};
+		return icons[talentName] || '⭐';
+	}
+
+	function getPalIconUrl(characterId?: string): string {
+		if (!characterId) return '';
+		return `/pals/T_${characterId}_icon_normal.png`;
+	}
+
+	function getElementIcon(elementType?: string): string {
+		if (!elementType || elementType === 'None') return '';
+		
+		const elementMapping: Record<string, number> = {
+			'Normal': 0,
+			'Fire': 1,
+			'Water': 2,
+			'Electric': 3,
+			'Lightning': 3,
+			'Electricity': 3,    // Handle Electricity specifically
+			'Grass': 4,
+			'Plant': 4,
+			'Leaf': 4,           // Handle Leaf specifically
+			'Dark': 5,
+			'Dragon': 6,
+			'Ground': 7,
+			'Earth': 7,
+			'Ice': 8
+		};
+		
+		const iconIndex = elementMapping[elementType];
+		if (iconIndex !== undefined) {
+			return `/T_Icon_element_${iconIndex.toString().padStart(2, '0')}.png`;
+		}
+		
+		return '';
+	}
+
+	function getElementColor(elementType?: string): string {
+		const colorMapping: Record<string, string> = {
+			'Normal': 'bg-gray-600 text-gray-200',
+			'Fire': 'bg-red-600 text-red-200',
+			'Water': 'bg-blue-600 text-blue-200',
+			'Electric': 'bg-yellow-600 text-yellow-200',
+			'Lightning': 'bg-yellow-600 text-yellow-200',
+			'Electricity': 'bg-yellow-600 text-yellow-200',
+			'Grass': 'bg-green-600 text-green-200',
+			'Plant': 'bg-green-600 text-green-200',
+			'Leaf': 'bg-green-600 text-green-200',
+			'Dark': 'bg-purple-600 text-purple-200',
+			'Dragon': 'bg-indigo-600 text-indigo-200',
+			'Ground': 'bg-amber-600 text-amber-200',
+			'Earth': 'bg-amber-600 text-amber-200',
+			'Ice': 'bg-cyan-600 text-cyan-200'
+		};
+		
+		return colorMapping[elementType || ''] || 'bg-slate-600 text-slate-200';
+	}
+
+	function getPassiveSkillRatingIcon(rating: number): string {
+		if (rating === -1) {
+			return '/T_icon_skillstatus_rank_arrow_00.png';
+		} else if (rating >= 0 && rating <= 4) {
+			return `/T_icon_skillstatus_rank_arrow_${rating.toString().padStart(2, '0')}.png`;
+		}
+		return '';
+	}
+
+	function getPassiveSkillRatingColor(rating: number): string {
+		const colorMapping: Record<number, string> = {
+			'-1': 'bg-red-900/50 text-red-300 border-red-500',
+			0: 'bg-gray-900/50 text-gray-300 border-gray-500',
+			1: 'bg-blue-900/50 text-blue-300 border-blue-500',
+			2: 'bg-green-900/50 text-green-300 border-green-500',
+			3: 'bg-purple-900/50 text-purple-300 border-purple-500',
+			4: 'bg-yellow-900/50 text-yellow-300 border-yellow-500'
+		};
+		
+		return colorMapping[rating] || 'bg-slate-900/50 text-slate-300 border-slate-500';
+	}
+
+	function getWorkSkillIcon(skillName: string): string {
+		const skillMapping: Record<string, number> = {
+			'emitFlame': 0,           // Fire
+			'watering': 1,            // Watering
+			'seeding': 2,             // Seeding
+			'generateElectricity': 3, // Generate Electricity
+			'handcraft': 4,           // Handiwork
+			'collection': 5,          // Gathering
+			'deforest': 6,            // Deforestation
+			'mining': 7,              // Mining
+			'productMedicine': 8,     // Product Medicine
+			'cool': 10,               // Cool/Ice (index 10)
+			'transport': 11,          // Transport
+			'monsterFarm': 12         // Farm
+		};
+		
+		const iconIndex = skillMapping[skillName];
+		if (iconIndex !== undefined) {
+			return `/T_icon_palwork_${iconIndex.toString().padStart(2, '0')}.png`;
+		}
+		
+		return '';
+	}
+
+	function getWorkSkillName(skillName: string): string {
+		const nameMapping: Record<string, string> = {
+			'emitFlame': 'Fire',
+			'watering': 'Watering',
+			'seeding': 'Seeding',
+			'generateElectricity': 'Electricity',
+			'handcraft': 'Handiwork',
+			'collection': 'Gathering',
+			'deforest': 'Lumbering',
+			'mining': 'Mining',
+			'productMedicine': 'Medicine',
+			'cool': 'Cooling',
+			'transport': 'Transport',
+			'monsterFarm': 'Farming'
+		};
+		
+		return nameMapping[skillName] || skillName;
+	}
+
+	function getCombinedTalent(pal: any): number {
+		return (pal.talentHP || 0) + (pal.talentShot || 0) + (pal.talentDefense || 0);
+	}
+
+	function filterPals(pals: any[], genderFilter: string, bossFilter: string, elementFilter: string) {
+		return pals.filter(pal => {
+			// Gender filter
+			if (genderFilter !== 'all') {
+				const palGender = getGenderType(pal.gender);
+				if (genderFilter === 'male' && palGender !== 'male') return false;
+				if (genderFilter === 'female' && palGender !== 'female') return false;
+			}
+
+			// Boss filter
+			if (bossFilter !== 'all') {
+				if (bossFilter === 'boss' && !pal.isBoss) return false;
+				if (bossFilter === 'normal' && pal.isBoss) return false;
+			}
+
+			// Element filter
+			if (elementFilter !== 'all') {
+				if (!pal.elementType1 || pal.elementType1 !== elementFilter) {
+					if (!pal.elementType2 || pal.elementType2 !== elementFilter) {
+						return false;
+					}
+				}
+			}
+
+			return true;
+		});
+	}
+
+	function sortPals(pals: any[], sortBy: string, order: 'asc' | 'desc') {
+		const sorted = [...pals].sort((a, b) => {
+			let valueA: any, valueB: any;
+
+			switch (sortBy) {
+				case 'ownedTime':
+					valueA = a.ownedTime ? new Date(a.ownedTime).getTime() : 0;
+					valueB = b.ownedTime ? new Date(b.ownedTime).getTime() : 0;
+					break;
+				case 'friendshipPoint':
+					valueA = a.friendshipPoint || 0;
+					valueB = b.friendshipPoint || 0;
+					break;
+				case 'level':
+					valueA = a.level || 0;
+					valueB = b.level || 0;
+					break;
+				case 'combinedTalent':
+					valueA = getCombinedTalent(a);
+					valueB = getCombinedTalent(b);
+					break;
+				case 'talentHP':
+					valueA = a.talentHP || 0;
+					valueB = b.talentHP || 0;
+					break;
+				case 'talentShot':
+					valueA = a.talentShot || 0;
+					valueB = b.talentShot || 0;
+					break;
+				case 'talentDefense':
+					valueA = a.talentDefense || 0;
+					valueB = b.talentDefense || 0;
+					break;
+				default:
+					return 0;
+			}
+
+			if (valueA < valueB) return order === 'asc' ? -1 : 1;
+			if (valueA > valueB) return order === 'asc' ? 1 : -1;
+			return 0;
+		});
+
+		return sorted;
+	}
+
+	// Get unique elements from all pals for filter options
+	function getUniqueElements(pals: any[]): string[] {
+		const elements = new Set<string>();
+		pals.forEach(pal => {
+			if (pal.elementType1 && pal.elementType1 !== 'None') elements.add(pal.elementType1);
+			if (pal.elementType2 && pal.elementType2 !== 'None') elements.add(pal.elementType2);
+		});
+		return Array.from(elements).sort();
+	}
+
+	// Reactive filtered and sorted pals
+    let filteredAndSortedPals = $derived(() => {
+		if (!data.characterData.pals) return [];
+		const filtered = filterPals(data.characterData.pals, filterGender, filterBoss, filterElement);
+		return sortPals(filtered, sortBy, sortOrder);
+	});
+
+	// Get unique elements for filter dropdown
+	let uniqueElements = $derived(data.characterData.pals ? getUniqueElements(data.characterData.pals) : []);
+
+</script>
+
+<svelte:head>
+	<title>Character Details - {data.characterData.name}</title>
+</svelte:head>
+
+<style>
+	.red-mask {
+		filter: hue-rotate(0deg) saturate(0) brightness(0) invert(1) 
+				sepia(1) saturate(5) hue-rotate(0deg) brightness(0.8);
+	}
+</style>
+
+<div class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+	<!-- Header -->
+	<div class="bg-slate-800/50 backdrop-blur-sm border-b border-slate-700">
+		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+			<div class="flex items-center justify-between">
+				<div class="flex items-center justify-between w-full">
+					<div class="flex items-center space-x-4">
+						<button
+							onclick={goBackToWorld}
+							class="flex items-center space-x-2 text-slate-400 hover:text-white transition-colors"
+						>
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+							</svg>
+							<span>Back to World</span>
+						</button>
+						<div class="text-slate-500">•</div>
+						<h1 class="text-2xl font-bold text-white">Character Details</h1>
+					</div>
+					<div class="flex items-center space-x-4">
+						<a
+							href="/worlds/{data.worldId}/characters/{data.combinedId}/breeding"
+							class="flex items-center space-x-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+						>
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+							</svg>
+							<span>Breeding Calculator</span>
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+		<!-- Player Card -->
+		<div class="mb-8">
+			<PlayerCard character={data.characterData} />
+		</div>
+
+		<!-- Pals Section -->
+		{#if data.characterData.pals && data.characterData.pals.length > 0}
+			<div class="space-y-6">
+				<div class="flex flex-col space-y-4">
+					<div class="flex items-center justify-between">
+						<h2 class="text-xl font-semibold text-white flex items-center space-x-2">
+							<span class="text-2xl">🐾</span>
+							<span>Owned Pals ({data.characterData.pals.length})</span>
+						</h2>
+					</div>
+
+					<!-- Sort & Filter Controls -->
+					<div class="bg-slate-800 border border-slate-700 rounded-lg p-4 space-y-4">
+						<!-- Sort Controls -->
+						<div class="flex flex-wrap items-center gap-4">
+							<div class="flex items-center space-x-2">
+								<label class="text-sm text-slate-400">Sort by:</label>
+								<select 
+									bind:value={sortBy}
+									class="bg-slate-700 border border-slate-600 rounded px-3 py-1 text-sm text-white focus:border-slate-500 focus:outline-none"
+								>
+									<option value="ownedTime">Date Acquired</option>
+									<option value="friendshipPoint">Friendship</option>
+									<option value="level">Level</option>
+									<option value="combinedTalent">Combined Talent</option>
+									<option value="talentHP">HP Talent</option>
+									<option value="talentShot">Attack Talent</option>
+									<option value="talentDefense">Defense Talent</option>
+								</select>
+							</div>
+
+							<div class="flex items-center space-x-2">
+								<button
+									onclick={() => sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'}
+									class="flex items-center space-x-1 px-3 py-1 bg-slate-700 border border-slate-600 rounded text-sm text-white hover:bg-slate-600 transition-colors"
+								>
+									<span>{sortOrder === 'asc' ? '↑' : '↓'}</span>
+									<span>{sortOrder === 'asc' ? 'Ascending' : 'Descending'}</span>
+								</button>
+							</div>
+						</div>
+
+						<!-- Filter Controls -->
+						<div class="border-t border-slate-700 pt-4">
+							<div class="flex flex-wrap items-center gap-4">
+								<div class="flex items-center space-x-2">
+									<label class="text-sm text-slate-400">Gender:</label>
+									<select 
+										bind:value={filterGender}
+										class="bg-slate-700 border border-slate-600 rounded px-3 py-1 text-sm text-white focus:border-slate-500 focus:outline-none"
+									>
+										<option value="all">All</option>
+										<option value="male">♂️ Male</option>
+										<option value="female">♀️ Female</option>
+									</select>
+								</div>
+
+								<div class="flex items-center space-x-2">
+									<label class="text-sm text-slate-400">Type:</label>
+									<select 
+										bind:value={filterBoss}
+										class="bg-slate-700 border border-slate-600 rounded px-3 py-1 text-sm text-white focus:border-slate-500 focus:outline-none"
+									>
+										<option value="all">All</option>
+										<option value="normal">Normal</option>
+										<option value="boss">Boss</option>
+									</select>
+								</div>
+
+								<div class="flex items-center space-x-2">
+									<label class="text-sm text-slate-400">Element:</label>
+									<select 
+										bind:value={filterElement}
+										class="bg-slate-700 border border-slate-600 rounded px-3 py-1 text-sm text-white focus:border-slate-500 focus:outline-none"
+									>
+										<option value="all">All Elements</option>
+										{#each uniqueElements as element}
+											<option value={element}>{element}</option>
+										{/each}
+									</select>
+								</div>
+
+								<button
+									onclick={() => {
+										filterGender = 'all';
+										filterBoss = 'all';
+										filterElement = 'all';
+									}}
+									class="px-3 py-1 bg-red-700 border border-red-600 rounded text-sm text-white hover:bg-red-600 transition-colors"
+								>
+									Clear Filters
+								</button>
+							</div>
+						</div>
+
+						<!-- Results Count -->
+						<div class="border-t border-slate-700 pt-3">
+							<div class="text-xs text-slate-500">
+								Showing {filteredAndSortedPals().length} of {data.characterData.pals?.length || 0} pal{filteredAndSortedPals().length !== 1 ? 's' : ''}
+								{#if filteredAndSortedPals().length !== (data.characterData.pals?.length || 0)}
+									<span class="text-blue-400">(filtered)</span>
+								{/if}
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Pals Grid -->
+				{#if filteredAndSortedPals().length > 0}
+					<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+						{#each filteredAndSortedPals() as pal}
+						<div class="bg-slate-800 border border-slate-700 rounded-lg p-6 hover:bg-slate-750 hover:border-slate-600 transition-colors duration-200">
+							<!-- Pal Header -->
+							<div class="flex items-center justify-between mb-4">
+								<div class="flex items-center space-x-3">
+									<div class="relative">
+										<div class="w-10 h-10 bg-gradient-to-br from-green-500 to-teal-600 rounded-full flex items-center justify-center text-white font-bold overflow-hidden">
+											{#if pal.characterId}
+												<img 
+													src={getPalIconUrl(pal.characterId)} 
+													alt={pal.name}
+													class="w-full h-full object-cover rounded-full"
+													onerror={(event) => {
+														// Fallback to emoji on error
+														const target = event.target as HTMLImageElement;
+														if (target) {
+															target.style.display = 'none';
+															target.parentElement!.innerHTML = '🐾';
+														}
+													}}
+												/>
+											{:else}
+												🐾
+											{/if}
+										</div>
+										{#if pal.isBoss}
+											<div class="absolute -top-1 -right-1 w-4 h-4 bg-red-600 rounded-full flex items-center justify-center border border-white z-10">
+												<img src="/T_icon_enemy_strong.png" alt="Boss" class="w-2.5 h-2.5" />
+											</div>
+										{/if}
+									</div>
+									<div class="min-w-0">
+										<h3 class="text-white font-semibold truncate">{pal.displayName || pal.name}</h3>
+										<div class="flex items-center space-x-2 text-xs text-slate-400">
+											<span class="{sortBy === 'level' ? 'text-blue-400 font-bold' : ''}">Level {pal.level}</span>
+											{#if pal.zukanIndex}
+												<span>•</span>
+												<span>#{pal.zukanIndex.toString().padStart(3, '0')}</span>
+											{/if}
+											{#if pal.rarity}
+												<span>•</span>
+												<span class="text-yellow-400">{'★'.repeat(Math.min(pal.rarity, 5))}</span>
+											{/if}
+										</div>
+									</div>
+								</div>
+								{#if pal.gender}
+									<div class="w-6 h-6">
+										{#if getGenderType(pal.gender) === 'male'}
+											<img src="/T_Icon_PanGender_Male.png" alt="Male" class="w-6 h-6" />
+										{:else if getGenderType(pal.gender) === 'female'}
+											<img src="/T_Icon_PanGender_Female.png" alt="Female" class="w-6 h-6" />
+										{:else}
+											<div class="text-lg">⚪</div>
+										{/if}
+									</div>
+								{/if}
+							</div>
+
+							<!-- Element Types -->
+							{#if pal.elementType1 || pal.elementType2}
+								<div class="mb-4">
+									<div class="text-xs text-slate-400 uppercase tracking-wide mb-2">Elements</div>
+									<div class="flex space-x-2">
+										{#if pal.elementType1 && pal.elementType1 !== 'None'}
+											<div class="flex items-center space-x-1 {getElementColor(pal.elementType1)} px-2 py-1 rounded text-xs">
+												{#if getElementIcon(pal.elementType1)}
+													<img src={getElementIcon(pal.elementType1)} alt={pal.elementType1} class="w-4 h-4" />
+												{/if}
+												<span>{pal.elementType1}</span>
+											</div>
+										{/if}
+										{#if pal.elementType2 && pal.elementType2 !== 'None'}
+											<div class="flex items-center space-x-1 {getElementColor(pal.elementType2)} px-2 py-1 rounded text-xs">
+												{#if getElementIcon(pal.elementType2)}
+													<img src={getElementIcon(pal.elementType2)} alt={pal.elementType2} class="w-4 h-4" />
+												{/if}
+												<span>{pal.elementType2}</span>
+											</div>
+										{/if}
+									</div>
+								</div>
+							{/if}
+
+							<!-- Work Suitabilities -->
+							{#if pal.workSuitabilities}
+								{@const workSkills = Object.entries(pal.workSuitabilities).filter(([_, level]) => level && level > 0)}
+								{#if workSkills.length > 0}
+									<div class="mb-4">
+										<div class="text-xs text-slate-400 uppercase tracking-wide mb-2">Work Skills</div>
+										<div class="grid grid-cols-2 gap-2">
+											{#each workSkills.slice(0, 6) as [skill, level]}
+												<div class="bg-slate-700 rounded px-3 py-3 text-xs flex items-center space-x-3">
+													{#if getWorkSkillIcon(skill)}
+														<img src={getWorkSkillIcon(skill)} alt={getWorkSkillName(skill)} class="w-8 h-8 flex-shrink-0" />
+													{/if}
+													<div class="flex-1 min-w-0">
+														<div class="text-slate-300 text-xs truncate">{getWorkSkillName(skill)}</div>
+														<div class="text-orange-400 font-semibold">Lv.{level}</div>
+													</div>
+												</div>
+											{/each}
+											{#if workSkills.length > 6}
+												<div class="bg-slate-700 rounded px-3 py-3 text-xs flex items-center justify-center text-slate-400">
+													+{workSkills.length - 6} more
+												</div>
+											{/if}
+										</div>
+									</div>
+								{/if}
+							{/if}
+
+							<!-- Talents -->
+							{#if pal.talentHP || pal.talentShot || pal.talentDefense}
+								<div class="space-y-2 mb-4">
+									<div class="text-xs text-slate-400 uppercase tracking-wide flex items-center justify-between">
+										<span>Talents</span>
+										{#if sortBy === 'combinedTalent'}
+											<span class="text-yellow-400 text-xs">Total: {getCombinedTalent(pal)}</span>
+										{/if}
+									</div>
+									<div class="grid grid-cols-3 gap-2">
+										{#if pal.talentHP}
+											<div class="bg-slate-700 rounded p-2 text-center {sortBy === 'talentHP' ? 'ring-2 ring-red-400' : ''}">
+												<div class="text-red-400 text-xs">❤️ HP</div>
+												<div class="text-white font-semibold">{pal.talentHP}</div>
+											</div>
+										{/if}
+										{#if pal.talentShot}
+											<div class="bg-slate-700 rounded p-2 text-center {sortBy === 'talentShot' ? 'ring-2 ring-orange-400' : ''}">
+												<div class="text-orange-400 text-xs">⚔️ ATK</div>
+												<div class="text-white font-semibold">{pal.talentShot}</div>
+											</div>
+										{/if}
+										{#if pal.talentDefense}
+											<div class="bg-slate-700 rounded p-2 text-center {sortBy === 'talentDefense' ? 'ring-2 ring-blue-400' : ''}">
+												<div class="text-blue-400 text-xs">🛡️ DEF</div>
+												<div class="text-white font-semibold">{pal.talentDefense}</div>
+											</div>
+										{/if}
+									</div>
+								</div>
+							{/if}
+
+							<!-- Passive Skills -->
+							{#if pal.passiveSkills && pal.passiveSkills.length > 0}
+								<div class="mb-4">
+									<div class="text-xs text-slate-400 uppercase tracking-wide mb-2">Passive Skills</div>
+									<div class="space-y-2">
+										{#each pal.passiveSkills as skill}
+											<div class="flex items-start space-x-2 p-2 rounded border {getPassiveSkillRatingColor(skill.Rating)}">
+												<div class="flex-shrink-0">
+													{#if getPassiveSkillRatingIcon(skill.Rating)}
+														<img 
+															src={getPassiveSkillRatingIcon(skill.Rating)} 
+															alt="Rating {skill.Rating}" 
+															class="w-4 h-4 {skill.Rating === -1 ? 'red-mask' : ''}"
+														/>
+													{/if}
+												</div>
+												<div class="flex-1 min-w-0">
+													<div class="text-sm font-medium truncate">{skill.Name}</div>
+													<div class="text-xs opacity-75 mt-1">{skill.Description}</div>
+												</div>
+											</div>
+										{/each}
+									</div>
+								</div>
+							{/if}
+
+							<!-- Base Stats -->
+							{#if pal.baseHp || pal.baseMeleeAttack || pal.baseShotAttack || pal.baseDefense}
+								<div class="mb-4">
+									<div class="text-xs text-slate-400 uppercase tracking-wide mb-2">Base Stats</div>
+									<div class="grid grid-cols-2 gap-2">
+										{#if pal.baseHp}
+											<div class="bg-slate-700 rounded px-2 py-1 text-xs">
+												<span class="text-red-400">HP:</span>
+												<span class="text-white ml-1">{pal.baseHp}</span>
+											</div>
+										{/if}
+										{#if pal.baseMeleeAttack}
+											<div class="bg-slate-700 rounded px-2 py-1 text-xs">
+												<span class="text-orange-400">Melee:</span>
+												<span class="text-white ml-1">{pal.baseMeleeAttack}</span>
+											</div>
+										{/if}
+										{#if pal.baseShotAttack}
+											<div class="bg-slate-700 rounded px-2 py-1 text-xs">
+												<span class="text-yellow-400">Shot:</span>
+												<span class="text-white ml-1">{pal.baseShotAttack}</span>
+											</div>
+										{/if}
+										{#if pal.baseDefense}
+											<div class="bg-slate-700 rounded px-2 py-1 text-xs">
+												<span class="text-blue-400">Defense:</span>
+												<span class="text-white ml-1">{pal.baseDefense}</span>
+											</div>
+										{/if}
+									</div>
+								</div>
+							{/if}
+
+							<!-- Stats -->
+							<div class="grid grid-cols-2 gap-3 pt-3 border-t border-slate-700">
+								<div class="text-center {sortBy === 'friendshipPoint' ? 'ring-2 ring-pink-400 rounded p-1' : ''}">
+									<div class="text-slate-400 text-xs uppercase tracking-wide flex items-center justify-center space-x-1">
+										<img src="/T_Icon_PalFriendship_Color.png" alt="Friendship" class="w-3 h-3" />
+										<span>Friendship</span>
+									</div>
+									<div class="text-pink-400 font-bold">{pal.friendshipPoint || 0}</div>
+								</div>
+								{#if pal.ownedTime}
+									<div class="text-center {sortBy === 'ownedTime' ? 'ring-2 ring-green-400 rounded p-1' : ''}">
+										<div class="text-slate-400 text-xs uppercase tracking-wide">Owned</div>
+										<div class="text-green-400 font-bold text-xs">{formatDate(pal.ownedTime)}</div>
+									</div>
+								{/if}
+							</div>
+						</div>
+					{/each}
+				</div>
+			{:else}
+				<div class="text-center py-12">
+					<div class="text-slate-500 text-lg mb-2">No pals match your filters</div>
+					<div class="text-slate-400 text-sm">Try adjusting your filter criteria to see more results.</div>
+				</div>
+			{/if}
+		</div>
+		{:else}
+			<div class="text-center py-12">
+				<div class="text-slate-500 text-lg mb-2">No pals found</div>
+				<div class="text-slate-400 text-sm">This player doesn't own any pals yet.</div>
+			</div>
+		{/if}
+	</div>
+</div>

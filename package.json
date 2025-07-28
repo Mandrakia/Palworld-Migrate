@@ -1,0 +1,26 @@
+{
+  "name": "palworld-migrate",
+  "version": "1.0.0",
+  "description": "Tool to migrate a character from server to server",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mandrakia/Palworld-Migrate.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Mandrakia/Palworld-Migrate/issues"
+  },
+  "homepage": "https://github.com/Mandrakia/Palworld-Migrate#readme",
+  "dependencies": {  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
+  }
+}
