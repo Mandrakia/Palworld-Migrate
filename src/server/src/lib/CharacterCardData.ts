@@ -26,6 +26,7 @@ export interface FullPlayerCardData extends PlayerCardData {
 
 export interface PalCardData extends BaseCharacterCardData {
 	type: 'pal';
+    isInCamp: boolean;
 	characterId: string;
 	gender?: string;
 	equipWaza?: string[];

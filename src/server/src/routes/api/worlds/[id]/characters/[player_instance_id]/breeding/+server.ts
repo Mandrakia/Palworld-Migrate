@@ -2,7 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import {Pal} from "$save-edit/models/Pal";
 import type {CharacterCardData, FullPlayerCardData, PalCardData, PlayerCardData} from '$lib/CharacterCardData';
-import {toFullPlayerCard, toPalCard} from "$lib/mappers";
+import {getPlayerPals, toFullPlayerCard, toPalCard} from "$lib/mappers";
 import type {Player} from "$save-edit/models/Player";
 import {Buff, getPalData, getPassive, palDatabase, PalDatabaseEntry} from "$lib/palDatabase";
 import type {ServerSave} from "$save-edit/models/ServerSave";
@@ -35,7 +35,7 @@ function breed(pal1 : PalCardData, pal2 : PalCardData, serverSave : ServerSave) 
     let closest: PalDatabaseEntry;
     if(combination?.length) {
         var res = combination[0].ChildCharacterID;
-        closest = getPalData(res);
+        closest = getPalData(res)!;
     }
     else {
         var bFinal = Math.floor((bData1?.CombiRank + bData2?.CombiRank + 1) / 2);
@@ -132,15 +132,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 
         // Use fallback for PlayerId - try pWorld.PlayerId first, then pSave.PlayerUid
         const playerIdForFilter = pWorld.PlayerId || pSave.PlayerUid || 'unknown';
-
-        let playerContainers: string[] = [];
-        let guild = serverSave.Groups.find(group => group.Id === pWorld.GroupId) as Guild;
-        if(guild) {
-            playerContainers = guild.BaseIds.map(bId => serverSave.BaseCamps.find(x => x.Id === bId)!.ContainerId)
-        }
-        playerContainers.push(pSave.CharacterPalsContainerId);
-        playerContainers.push(pSave.PalStorageContainerId);
-        const pals = serverSave.Characters.filter(a => a instanceof Pal && a.OwnerPlayerUId === playerId && playerContainers.includes(a.ContainerId)).map(a => toPalCard(a as Pal, serverSave));
+        const pals = getPlayerPals(pWorld, pSave, serverSave);
 
         // Filter pals by gender
         const malePals = pals.filter(pal => pal.gender === "EPalGenderType::Male" && pal.characterId !== null);
@@ -159,7 +151,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
         const uniqueResults = new Map<string, any>();
         
         for (const result of breedingResults) {
-            const resultId = result.Result.BPClass; // Using BPClass as the unique identifier
+            const resultId = result.Result.Tribe; // Using BPClass as the unique identifier
             
             if (!uniqueResults.has(resultId) || uniqueResults.get(resultId).TalentScore < result.TalentScore) {
                 uniqueResults.set(resultId, result);

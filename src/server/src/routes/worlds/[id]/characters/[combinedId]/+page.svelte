@@ -16,9 +16,10 @@
 	let sortOrder = $state('desc' as 'asc' | 'desc');
 	
 	// Filter state
-	let filterGender = $state('all' as 'all' | 'male' | 'female');
+	let selectedGender = $state(null as 'male' | 'female' | null);
 	let filterBoss = $state('all' as 'all' | 'boss' | 'normal');
-	let filterElement = $state('all' as string); // 'all' or specific element type
+	let selectedElements = $state(new Set<string>()); // Set of selected elements (AND logic)
+	let selectedWorkSkills = $state(new Map<string, number>()); // Map of work skill to required level
 
 	function handlePalSelect(pal: any) {
 		// Could navigate to a detailed pal view if needed
@@ -169,13 +170,12 @@
 		return (pal.talentHP || 0) + (pal.talentShot || 0) + (pal.talentDefense || 0);
 	}
 
-	function filterPals(pals: any[], genderFilter: string, bossFilter: string, elementFilter: string) {
+	function filterPals(pals: any[], selectedGender: 'male' | 'female' | null, bossFilter: string, selectedElements: Set<string>, selectedWorkSkills: Map<string, number>) {
 		return pals.filter(pal => {
 			// Gender filter
-			if (genderFilter !== 'all') {
+			if (selectedGender) {
 				const palGender = getGenderType(pal.gender);
-				if (genderFilter === 'male' && palGender !== 'male') return false;
-				if (genderFilter === 'female' && palGender !== 'female') return false;
+				if (palGender !== selectedGender) return false;
 			}
 
 			// Boss filter
@@ -184,12 +184,23 @@
 				if (bossFilter === 'normal' && pal.isBoss) return false;
 			}
 
-			// Element filter
-			if (elementFilter !== 'all') {
-				if (!pal.elementType1 || pal.elementType1 !== elementFilter) {
-					if (!pal.elementType2 || pal.elementType2 !== elementFilter) {
-						return false;
-					}
+			// Element filter (AND logic - pal must have ALL selected elements)
+			if (selectedElements.size > 0) {
+				const palElements = new Set<string>();
+				if (pal.elementType1 && pal.elementType1 !== 'None') palElements.add(pal.elementType1);
+				if (pal.elementType2 && pal.elementType2 !== 'None') palElements.add(pal.elementType2);
+				
+				// Check if pal has ALL selected elements
+				for (const element of selectedElements) {
+					if (!palElements.has(element)) return false;
+				}
+			}
+
+			// Work skills filter (AND logic - pal must have ALL selected work skills at required level or higher)
+			if (selectedWorkSkills.size > 0) {
+				for (const [skillName, requiredLevel] of selectedWorkSkills) {
+					const palSkillLevel = pal.workSuitabilities?.[skillName] || 0;
+					if (palSkillLevel < requiredLevel) return false;
 				}
 			}
 
@@ -255,12 +266,89 @@
 	// Reactive filtered and sorted pals
     let filteredAndSortedPals = $derived(() => {
 		if (!data.characterData.pals) return [];
-		const filtered = filterPals(data.characterData.pals, filterGender, filterBoss, filterElement);
+		const filtered = filterPals(data.characterData.pals, selectedGender, filterBoss, selectedElements, selectedWorkSkills);
 		return sortPals(filtered, sortBy, sortOrder);
 	});
 
-	// Get unique elements for filter dropdown
+	// Get unique elements and work skills for filter options
 	let uniqueElements = $derived(data.characterData.pals ? getUniqueElements(data.characterData.pals) : []);
+	let uniqueWorkSkills = $derived(data.characterData.pals ? getUniqueWorkSkills(data.characterData.pals) : []);
+
+	// Get unique work skills from all pals
+	function getUniqueWorkSkills(pals: any[]): string[] {
+		const skills = new Set<string>();
+		pals.forEach(pal => {
+			if (pal.workSuitabilities) {
+				Object.entries(pal.workSuitabilities).forEach(([skill, level]) => {
+					if (level && (level as number) > 0) {
+						skills.add(skill);
+					}
+				});
+			}
+		});
+		return Array.from(skills).sort();
+	}
+
+	// Gender toggle functions
+	function toggleGender(gender: 'male' | 'female') {
+		if (selectedGender === gender) {
+			selectedGender = null; // Deselect if already selected
+		} else {
+			selectedGender = gender; // Select this gender (automatically deselects other)
+		}
+	}
+
+	// Element toggle functions
+	function toggleElement(element: string) {
+		if (selectedElements.has(element)) {
+			selectedElements.delete(element);
+		} else {
+			selectedElements.add(element);
+		}
+		// Trigger reactivity
+		selectedElements = new Set(selectedElements);
+	}
+
+	// Work skill functions
+	function handleWorkSkillClick(skillName: string, event: MouseEvent) {
+		event.preventDefault();
+		
+		if (event.button === 0) { // Left click
+			const currentLevel = selectedWorkSkills.get(skillName) || 0;
+			if (currentLevel === 0) {
+				// First click: select at level 1
+				selectedWorkSkills.set(skillName, 1);
+			} else if (currentLevel < 4) {
+				// Subsequent clicks: increase level
+				selectedWorkSkills.set(skillName, currentLevel + 1);
+			} else {
+				// Max level reached, remove selection
+				selectedWorkSkills.delete(skillName);
+			}
+		} else if (event.button === 2) { // Right click
+			const currentLevel = selectedWorkSkills.get(skillName) || 0;
+			if (currentLevel > 1) {
+				// Decrease level
+				selectedWorkSkills.set(skillName, currentLevel - 1);
+			} else if (currentLevel === 1) {
+				// Remove selection
+				selectedWorkSkills.delete(skillName);
+			}
+		}
+		
+		// Trigger reactivity
+		selectedWorkSkills = new Map(selectedWorkSkills);
+	}
+
+	// Clear all filters
+	function clearAllFilters() {
+		selectedGender = null;
+		filterBoss = 'all';
+		selectedElements.clear();
+		selectedElements = new Set(selectedElements);
+		selectedWorkSkills.clear();
+		selectedWorkSkills = new Map(selectedWorkSkills);
+	}
 
 </script>
 
@@ -359,54 +447,108 @@
 						</div>
 
 						<!-- Filter Controls -->
-						<div class="border-t border-slate-700 pt-4">
-							<div class="flex flex-wrap items-center gap-4">
-								<div class="flex items-center space-x-2">
-									<label class="text-sm text-slate-400">Gender:</label>
-									<select 
-										bind:value={filterGender}
-										class="bg-slate-700 border border-slate-600 rounded px-3 py-1 text-sm text-white focus:border-slate-500 focus:outline-none"
-									>
-										<option value="all">All</option>
-										<option value="male">♂️ Male</option>
-										<option value="female">♀️ Female</option>
-									</select>
+						<div class="border-t border-slate-700 pt-4 space-y-4">
+							<!-- Gender Filter -->
+							<div>
+								<div class="text-sm text-slate-400 mb-2 flex items-center space-x-2">
+									<span>Gender:</span>
+									{#if selectedGender}
+										<span class="text-xs text-blue-400">({selectedGender})</span>
+									{/if}
 								</div>
-
 								<div class="flex items-center space-x-2">
-									<label class="text-sm text-slate-400">Type:</label>
-									<select 
-										bind:value={filterBoss}
-										class="bg-slate-700 border border-slate-600 rounded px-3 py-1 text-sm text-white focus:border-slate-500 focus:outline-none"
+									<button
+										onclick={() => toggleGender('male')}
+										class="w-10 h-10 rounded-lg border-2 transition-all flex items-center justify-center {selectedGender === 'male' ? 'border-blue-500 bg-blue-500/20' : 'border-slate-600 hover:border-slate-500'}"
 									>
-										<option value="all">All</option>
-										<option value="normal">Normal</option>
-										<option value="boss">Boss</option>
-									</select>
-								</div>
-
-								<div class="flex items-center space-x-2">
-									<label class="text-sm text-slate-400">Element:</label>
-									<select 
-										bind:value={filterElement}
-										class="bg-slate-700 border border-slate-600 rounded px-3 py-1 text-sm text-white focus:border-slate-500 focus:outline-none"
+										<img src="/T_Icon_PanGender_Male.png" alt="Male" class="w-6 h-6" />
+									</button>
+									<button
+										onclick={() => toggleGender('female')}
+										class="w-10 h-10 rounded-lg border-2 transition-all flex items-center justify-center {selectedGender === 'female' ? 'border-pink-500 bg-pink-500/20' : 'border-slate-600 hover:border-slate-500'}"
 									>
-										<option value="all">All Elements</option>
-										{#each uniqueElements as element}
-											<option value={element}>{element}</option>
-										{/each}
-									</select>
+										<img src="/T_Icon_PanGender_Female.png" alt="Female" class="w-6 h-6" />
+									</button>
+									
+									<!-- Boss Filter -->
+									<div class="border-l border-slate-600 pl-4 ml-4">
+										<label class="text-sm text-slate-400">Type:</label>
+										<select 
+											bind:value={filterBoss}
+											class="ml-2 bg-slate-700 border border-slate-600 rounded px-3 py-1 text-sm text-white focus:border-slate-500 focus:outline-none"
+										>
+											<option value="all">All</option>
+											<option value="normal">Normal</option>
+											<option value="boss">Boss</option>
+										</select>
+									</div>
 								</div>
+							</div>
 
+							<!-- Element Filter -->
+							<div>
+								<div class="text-sm text-slate-400 mb-2 flex items-center space-x-2">
+									<span>Elements:</span>
+									{#if selectedElements.size > 0}
+										<span class="text-xs text-blue-400">({selectedElements.size} selected - AND logic)</span>
+									{/if}
+								</div>
+								<div class="flex flex-wrap gap-2">
+									{#each uniqueElements as element}
+										<button
+											onclick={() => toggleElement(element)}
+											class="flex items-center space-x-1 px-3 py-2 rounded-lg border-2 transition-all {selectedElements.has(element) ? 'border-yellow-500 bg-yellow-500/20' : 'border-slate-600 hover:border-slate-500'}"
+										>
+											{#if getElementIcon(element)}
+												<img src={getElementIcon(element)} alt={element} class="w-5 h-5" />
+											{/if}
+											<span class="text-xs text-white">{element}</span>
+										</button>
+									{/each}
+								</div>
+							</div>
+
+							<!-- Work Skills Filter -->
+							<div>
+								<div class="text-sm text-slate-400 mb-2 flex items-center space-x-2">
+									<span>Work Skills:</span>
+									{#if selectedWorkSkills.size > 0}
+										<span class="text-xs text-blue-400">({selectedWorkSkills.size} selected - AND logic)</span>
+									{/if}
+									<span class="text-xs text-slate-500">(Left click: select/increase level, Right click: decrease level)</span>
+								</div>
+								<div class="flex flex-wrap gap-2">
+									{#each uniqueWorkSkills as skillName}
+										{@const selectedLevel = selectedWorkSkills.get(skillName) || 0}
+										<button
+											onmousedown={(e) => handleWorkSkillClick(skillName, e)}
+											oncontextmenu={(e) => e.preventDefault()}
+											class="flex items-center space-x-1 px-3 py-2 rounded-lg border-2 transition-all relative {selectedLevel > 0 ? 'border-green-500 bg-green-500/20' : 'border-slate-600 hover:border-slate-500'}"
+										>
+											{#if getWorkSkillIcon(skillName)}
+												<img src={getWorkSkillIcon(skillName)} alt={getWorkSkillName(skillName)} class="w-5 h-5" />
+											{/if}
+											<span class="text-xs text-white">{getWorkSkillName(skillName)}</span>
+											{#if selectedLevel > 0}
+												<span class="absolute -top-1 -right-1 w-5 h-5 bg-green-600 rounded-full flex items-center justify-center text-xs text-white font-bold">
+													{selectedLevel}
+												</span>
+											{/if}
+										</button>
+									{/each}
+								</div>
+							</div>
+
+							<!-- Clear Filters Button -->
+							<div class="flex justify-center pt-2 border-t border-slate-700">
 								<button
-									onclick={() => {
-										filterGender = 'all';
-										filterBoss = 'all';
-										filterElement = 'all';
-									}}
-									class="px-3 py-1 bg-red-700 border border-red-600 rounded text-sm text-white hover:bg-red-600 transition-colors"
+									onclick={clearAllFilters}
+									class="px-4 py-2 bg-red-700 border border-red-600 rounded-lg text-sm text-white hover:bg-red-600 transition-colors flex items-center space-x-2"
 								>
-									Clear Filters
+									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+									</svg>
+									<span>Clear All Filters</span>
 								</button>
 							</div>
 						</div>
@@ -417,6 +559,16 @@
 								Showing {filteredAndSortedPals().length} of {data.characterData.pals?.length || 0} pal{filteredAndSortedPals().length !== 1 ? 's' : ''}
 								{#if filteredAndSortedPals().length !== (data.characterData.pals?.length || 0)}
 									<span class="text-blue-400">(filtered)</span>
+								{/if}
+								{#if selectedGender || filterBoss !== 'all' || selectedElements.size > 0 || selectedWorkSkills.size > 0}
+									<span class="text-orange-400 text-xs ml-2">
+										[Active filters: 
+										{#if selectedGender}Gender: {selectedGender}{/if}
+										{#if filterBoss !== 'all'}{selectedGender ? ', ' : ''}Type: {filterBoss}{/if}
+										{#if selectedElements.size > 0}{selectedGender || filterBoss !== 'all' ? ', ' : ''}Elements: {selectedElements.size}{/if}
+										{#if selectedWorkSkills.size > 0}{selectedGender || filterBoss !== 'all' || selectedElements.size > 0 ? ', ' : ''}Work: {selectedWorkSkills.size}{/if}
+										]
+									</span>
 								{/if}
 							</div>
 						</div>

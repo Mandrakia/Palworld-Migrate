@@ -23,7 +23,7 @@ export function toPlayerCard(pWorld: Player, pSave: CharacterSave, serverSave: S
     };
 }
 
-export function toPalCard(pWorld: Pal, serverSave: ServerSave) : PalCardData{
+export function toPalCard(pWorld: Pal, serverSave: ServerSave, isCamp: boolean = false) : PalCardData{
     // Check if it's a boss character and clean the ID
     const originalCharacterId = pWorld.CharacterId;
     const isBossFromId = originalCharacterId.includes('BOSS_');
@@ -57,6 +57,7 @@ export function toPalCard(pWorld: Pal, serverSave: ServerSave) : PalCardData{
 
     return {
         characterId: cleanCharacterId,
+        isInCamp : isCamp,
         type: "pal",
         id: pWorld.PlayerId || 'unknown',
         instanceId: pWorld.InstanceId || 'unknown',
@@ -107,16 +108,20 @@ export function toPalCard(pWorld: Pal, serverSave: ServerSave) : PalCardData{
     };
 }
 
+export function getPlayerPals(pWorld: Player, pSave: CharacterSave, serverSave: ServerSave) : PalCardData[] {
+    let playerContainers: string[] = [pSave.CharacterPalsContainerId, pSave.PalStorageContainerId];
+    let guildContainers: string[] = [];
+    let guild = serverSave.Groups.find(group => group.Id === pWorld.GroupId) as Guild;
+    if(guild) {
+        guildContainers = guild.BaseIds.map(bId => serverSave.BaseCamps.find(x => x.Id === bId)!.ContainerId)
+    }
+    const inventoryPals = serverSave.Characters.filter(a => a instanceof Pal && a.OwnerPlayerUId === pSave.PlayerUid && playerContainers.includes(a.ContainerId)).map(a => toPalCard(a as Pal, serverSave));
+    const campPals = serverSave.Characters.filter(a => a instanceof Pal && guildContainers.includes(a.ContainerId)).map(a => toPalCard(a as Pal, serverSave, true));
+    return [...inventoryPals, ...campPals];
+}
 export function toFullPlayerCard(pWorld: Player, pSave: CharacterSave, serverSave: ServerSave) : FullPlayerCardData {
     // Use fallback for PlayerId - try pWorld.PlayerId first, then pSave.PlayerUid
     const playerId = pWorld.PlayerId || pSave.PlayerUid || 'unknown';
-    let playerContainers: string[] = [];
-    let guild = serverSave.Groups.find(group => group.Id === pWorld.GroupId) as Guild;
-    if(guild) {
-        playerContainers = guild.BaseIds.map(bId => serverSave.BaseCamps.find(x => x.Id === bId)!.ContainerId)
-    }
-    playerContainers.push(pSave.CharacterPalsContainerId);
-    playerContainers.push(pSave.PalStorageContainerId);
-    const pals = serverSave.Characters.filter(a => a instanceof Pal && a.OwnerPlayerUId === playerId && playerContainers.includes(a.ContainerId)).map(a => toPalCard(a as Pal, serverSave));
+    const pals = getPlayerPals(pWorld,pSave,serverSave);
     return {...toPlayerCard(pWorld, pSave, serverSave), pals};
 }
