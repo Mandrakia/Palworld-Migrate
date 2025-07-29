@@ -112,4 +112,12 @@ export class Pal extends Character {
   set OwnerPlayerUId(value: string) {
     this.setPath(["value","RawData","value","object","SaveParameter","value","OwnerPlayerUId","value"], value);
   }
+
+  get Rank(): number {
+    return this.getPath(["value","RawData","value","object","SaveParameter","value","Rank","value","value"]);
+  }
+
+  set Rank(value: number) {
+    this.setPath(["value","RawData","value","object","SaveParameter","value","Rank","value","value"], value);
+  }
 }

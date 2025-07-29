@@ -1,4 +1,5 @@
-import { EntityMeta } from "./schema";
+import {EntityMeta} from "./schema";
+
 export const EntitySchemas: Record<string, EntityMeta> = {
     "CharacterSave": {
         properties: {
@@ -64,331 +65,335 @@ export const EntitySchemas: Record<string, EntityMeta> = {
             },
         }
     },
-    "ServerSave":{
-        properties:{
-            "Characters":{
+    "ServerSave": {
+        properties: {
+            "Characters": {
                 path: ["properties", "worldSaveData", "value", "CharacterSaveParameterMap", "value"],
                 type: "Character[]"
             },
-            "ItemContainers":{
+            "ItemContainers": {
                 path: ["properties", "worldSaveData", "value", "ItemContainerSaveData", "value"],
                 type: "ItemContainer[]"
             },
-            "Timestamp":{
+            "Timestamp": {
                 path: ["properties", "Timestamp", "value"],
                 type: "Date"
             },
-            "CharacterContainers":{
+            "CharacterContainers": {
                 path: ["properties", "worldSaveData", "value", "CharacterContainerSaveData", "value"],
                 type: "CharacterContainer[]"
             },
-            "Groups":{
+            "Groups": {
                 path: ["properties", "worldSaveData", "value", "GroupSaveDataMap", "value"],
                 type: "Group[]"
             },
-            "BaseCamps":{
+            "BaseCamps": {
                 path: ["properties", "worldSaveData", "value", "BaseCampSaveData", "value"],
                 type: "BaseCamp[]"
             }
         }
     },
-    "BaseCamp":{
-        properties:{
-            "Id":{
+    "BaseCamp": {
+        properties: {
+            "Id": {
                 path: ["key"],
                 type: "string"
             },
-            "ContainerId":{
-                path: ["value", "WorkerDirector","value", "RawData","value", "container_id"],
+            "ContainerId": {
+                path: ["value", "WorkerDirector", "value", "RawData", "value", "container_id"],
                 type: "string"
             },
-            "GroupId":{
-                path:["value", "RawData", "value", "group_id_belong_to"],
+            "GroupId": {
+                path: ["value", "RawData", "value", "group_id_belong_to"],
                 type: "string"
             },
-            "OwnerInstanceId":{
-                path:["value", "RawData", "value", "owner_map_object_instance_id"],
+            "OwnerInstanceId": {
+                path: ["value", "RawData", "value", "owner_map_object_instance_id"],
                 type: "string"
             }
         }
     },
-    "GroupMember":{
-        properties:{
-            "PlayerId":{
+    "GroupMember": {
+        properties: {
+            "PlayerId": {
                 path: ["guid"],
                 type: "string"
             },
-            "InstanceId":{
+            "InstanceId": {
                 path: ["instance_id"],
                 type: "string"
             }
         }
     },
-    "Group":{
-        typeResolver:{
-            discriminatorPath: ["value","RawData","value","group_type"],
-            mapping:{
+    "Group": {
+        typeResolver: {
+            discriminatorPath: ["value", "RawData", "value", "group_type"],
+            mapping: {
                 "EPalGroupType::Organization": "Organization",
                 "EPalGroupType::Guild": "Guild",
                 "default": "Group"
             }
         },
-        properties:{
-            "Id":{
-                type:"string",
+        properties: {
+            "Id": {
+                type: "string",
                 path: ["key"]
             },
-            "Members":{
-                type:"GroupMember[]",
-                path:["value","RawData","value", "individual_character_handle_ids"]
+            "Members": {
+                type: "GroupMember[]",
+                path: ["value", "RawData", "value", "individual_character_handle_ids"]
             },
-            "Name":{
-                type:"string",
-                path:["value","RawData","value", "group_name"]
+            "Name": {
+                type: "string",
+                path: ["value", "RawData", "value", "group_name"]
             }
         }
     },
-    "Guild":{
+    "Guild": {
         baseType: "Group",
-        properties:{
-            "BaseIds":{
-                path: ["value","RawData","value","base_ids"],
+        properties: {
+            "BaseIds": {
+                path: ["value", "RawData", "value", "base_ids"],
                 type: "string[]"
             },
-            MapBaseIds:{
-                path: ["value","RawData","value","map_object_instance_ids_base_camp_points"],
+            MapBaseIds: {
+                path: ["value", "RawData", "value", "map_object_instance_ids_base_camp_points"],
                 type: "string[]"
             },
-            CampLevel:{
-                path: ["value","RawData","value","base_camp_level"],
+            CampLevel: {
+                path: ["value", "RawData", "value", "base_camp_level"],
                 type: "number"
             },
-            GuildName:{
-                path: ["value","RawData","value","guild_name"],
+            GuildName: {
+                path: ["value", "RawData", "value", "guild_name"],
                 type: "string"
             }
         }
     },
-    "Organization":{
+    "Organization": {
         baseType: "Group",
-        properties:{}
+        properties: {}
     },
-    "Character":{
-        typeResolver:{
+    "Character": {
+        typeResolver: {
             discriminatorPath: ["value", "RawData", "value", "object", "SaveParameter", "value", "IsPlayer", "value"],
-            mapping:{
+            mapping: {
                 "true": "Player",
                 "default": "Pal"
             }
         },
-        properties:{
-            "Nickname":{
-                path: ["value","RawData","value","object","SaveParameter","value","NickName","value"],
+        properties: {
+            "Nickname": {
+                path: ["value", "RawData", "value", "object", "SaveParameter", "value", "NickName", "value"],
                 type: "string"
             },
             "FilteredNickname": {
-                path: ["value","RawData","value","object","SaveParameter","value","FilteredNickName","value"],
+                path: ["value", "RawData", "value", "object", "SaveParameter", "value", "FilteredNickName", "value"],
                 type: "string"
             },
-            "IsPlayer":{
-                path: ["value","RawData","value","object","SaveParameter","value","IsPlayer","value"],
+            "IsPlayer": {
+                path: ["value", "RawData", "value", "object", "SaveParameter", "value", "IsPlayer", "value"],
                 type: "boolean"
             },
-                        "PlayerId":{
-                path: ["key","PlayerUId","value"],
+            "PlayerId": {
+                path: ["key", "PlayerUId", "value"],
                 type: "string"
             },
-                        "InstanceId":{
-          path: ["key","InstanceId","value"],
+            "InstanceId": {
+                path: ["key", "InstanceId", "value"],
                 type: "string"
             },
-            "Level":{
-                path: ["value","RawData","value","object","SaveParameter","value","Level","value","value"],
+            "Level": {
+                path: ["value", "RawData", "value", "object", "SaveParameter", "value", "Level", "value", "value"],
                 type: "number"
             },
-                        "Exp":{
-                path: ["value","RawData","value","object","SaveParameter","value","Exp","value"],
+            "Exp": {
+                path: ["value", "RawData", "value", "object", "SaveParameter", "value", "Exp", "value"],
                 type: "number"
             },
-                        "Hp":{
-                path: ["value","RawData","value","object","SaveParameter","value","Hp","value","Value", "value"],
+            "Hp": {
+                path: ["value", "RawData", "value", "object", "SaveParameter", "value", "Hp", "value", "Value", "value"],
                 type: "number"
             },
-            "FullStomach":{
-                path: ["value","RawData","value","object","SaveParameter","value","FullStomach","value"],
+            "FullStomach": {
+                path: ["value", "RawData", "value", "object", "SaveParameter", "value", "FullStomach", "value"],
                 type: "number"
             },
-            "Stats":{
-                path: ["value","RawData","value","object","SaveParameter","value","GotStatusPointList","value","values"],
+            "Stats": {
+                path: ["value", "RawData", "value", "object", "SaveParameter", "value", "GotStatusPointList", "value", "values"],
                 type: "StatPoint[]"
             },
-            "GroupId":{
-               path: ["value","RawData","value","group_id"],
-               type: "string"
+            "GroupId": {
+                path: ["value", "RawData", "value", "group_id"],
+                type: "string"
             },
-            "AddedStats":{
-                path: ["value","RawData","value","object","SaveParameter","value","GotExStatusPointList","value","values"],
+            "AddedStats": {
+                path: ["value", "RawData", "value", "object", "SaveParameter", "value", "GotExStatusPointList", "value", "values"],
                 type: "StatPoint[]"
             },
         }
     },
-    "StatPoint":{
-        properties:{
-            "Name":{
+    "StatPoint": {
+        properties: {
+            "Name": {
                 path: ["StatusName", "value"],
-                type : "string"
+                type: "string"
             },
-            "Value":{
-                path : ["StatusPoint", "value"],
+            "Value": {
+                path: ["StatusPoint", "value"],
                 type: "number"
             }
         }
     },
-    "Player":{
+    "Player": {
         baseType: "Character",
-        properties:{
-            "FoodRegenEffectTime":{
-                path: ["value","RawData","value","object","SaveParameter","value","FoodRegeneEffectInfo","value", "EffectTime", "value"],
+        properties: {
+            "FoodRegenEffectTime": {
+                path: ["value", "RawData", "value", "object", "SaveParameter", "value", "FoodRegeneEffectInfo", "value", "EffectTime", "value"],
                 type: "number"
             }
         }
     },
-     "Pal": {
-    baseType: "Character",
-    properties: {
-      "CharacterId": {
-        path: [
-          "value", "RawData", "value", "object", "SaveParameter", "value", "CharacterID", "value"
-        ],
-        type: "string"
-      },
-      "Gender": {
-        path: [
-          "value", "RawData", "value", "object", "SaveParameter", "value", "Gender", "value", "value"
-        ],
-        type: "string"
-      },
-      "Level": {
-        path: [
-          "value", "RawData", "value", "object", "SaveParameter", "value", "Level", "value", "value"
-        ],
-        type: "number"
-      },
-      "EquipWaza": {
-        path: [
-          "value", "RawData", "value", "object", "SaveParameter", "value", "EquipWaza", "value", "values"
-        ],
-        type: "string[]"
-      },
-      "TalentHP": {
-        path: [
-          "value", "RawData", "value", "object", "SaveParameter", "value", "Talent_HP", "value", "value"
-        ],
-        type: "number"
-      },
-      "TalentShot": {
-        path: [
-          "value", "RawData", "value", "object", "SaveParameter", "value", "Talent_Shot", "value", "value"
-        ],
-        type: "number"
-      },
-      "TalentDefense": {
-        path: [
-          "value", "RawData", "value", "object", "SaveParameter", "value", "Talent_Defense", "value", "value"
-        ],
-        type: "number"
-      },
-      "PassiveSkillList": {
-        path: [
-          "value", "RawData", "value", "object", "SaveParameter", "value", "PassiveSkillList", "value", "values"
-        ],
-        type: "string[]"
-      },
-      "OldOwnerPlayerUIds": {
-        path: [
-          "value", "RawData", "value", "object", "SaveParameter", "value", "OldOwnerPlayerUIds", "value", "values"
-        ],
-        type: "string[]"
-      },
-      "ContainerId": {
-        path: [
-          "value", "RawData", "value", "object", "SaveParameter", "value", "SlotId", "value", "ContainerId", "value", "ID", "value"
-        ],
-        type: "string"
-      },
-      "SlotIndex": {
-        path: [
-          "value", "RawData", "value", "object", "SaveParameter", "value", "SlotId", "value", "SlotIndex", "value"
-        ],
-        type: "number"
-      },
-      "FriendshipPoint": {
-        path: [
-          "value", "RawData", "value", "object", "SaveParameter", "value", "FriendshipPoint", "value"
-        ],
-        type: "number"
-      },
-      "FriendshipBasecampSec": {
-        path: [
-          "value", "RawData", "value", "object", "SaveParameter", "value", "FriendshipBasecampSec", "value"
-        ],
-        type: "number"
-      },
-      "OwnedTime":{
-        path: ["value","RawData","value","object","SaveParameter","value","OwnedTime","value"],
-        type: "Date"
-      },
-      "OwnerPlayerUId":{
-        path: ["value","RawData","value","object","SaveParameter","value","OwnerPlayerUId","value"],
-        type: "string"
-      },
-    }
-  },
-   "ItemContainer": {
-    "properties": {
-      "Id": {
-        path: ["key", "ID", "value"],
-        type: "string"
-      },
-      "BelongToGroup": {
-        path: ["value", "BelongInfo", "value", "GroupId", "value"],
-        type: "string"
-      },
-      "ControllableByOthers": {
-        path: ["value", "BelongInfo", "value", "bControllableOthers", "value"],
-        type: "boolean"
-      },
-      "SlotNum": {
-        path: ["value", "SlotNum", "value"],
-        type: "number"
-      },
-      "Slots":{
-        path: ["value", "Slots", "value", "values"],
-        type: "Slot[]"
-      }
-    }
-  },
-   "Slot": {
-    "properties": {
-      "Index": {
-        path: ["RawData", "value", "slot_index"],
-        type: "number"
-      },
-      "Count": {
-        path: ["RawData", "value", "count"],
-        type: "number"
-      },
-      "ItemId": {
-        path: ["RawData", "value", "item", "static_id"],
-        type: "string"
-      },
-      "DynamidId": {
-        path: ["RawData", "value", "item", "dynamic_id", "local_id_in_created_world"],
-        type: "string"
-      }
-    }
-  },
-    "CharacterContainer":{
+    "Pal": {
+        baseType: "Character",
+        properties: {
+            "CharacterId": {
+                path: [
+                    "value", "RawData", "value", "object", "SaveParameter", "value", "CharacterID", "value"
+                ],
+                type: "string"
+            },
+            "Gender": {
+                path: [
+                    "value", "RawData", "value", "object", "SaveParameter", "value", "Gender", "value", "value"
+                ],
+                type: "string"
+            },
+            "Level": {
+                path: [
+                    "value", "RawData", "value", "object", "SaveParameter", "value", "Level", "value", "value"
+                ],
+                type: "number"
+            },
+            "EquipWaza": {
+                path: [
+                    "value", "RawData", "value", "object", "SaveParameter", "value", "EquipWaza", "value", "values"
+                ],
+                type: "string[]"
+            },
+            "TalentHP": {
+                path: [
+                    "value", "RawData", "value", "object", "SaveParameter", "value", "Talent_HP", "value", "value"
+                ],
+                type: "number"
+            },
+            "TalentShot": {
+                path: [
+                    "value", "RawData", "value", "object", "SaveParameter", "value", "Talent_Shot", "value", "value"
+                ],
+                type: "number"
+            },
+            "TalentDefense": {
+                path: [
+                    "value", "RawData", "value", "object", "SaveParameter", "value", "Talent_Defense", "value", "value"
+                ],
+                type: "number"
+            },
+            "PassiveSkillList": {
+                path: [
+                    "value", "RawData", "value", "object", "SaveParameter", "value", "PassiveSkillList", "value", "values"
+                ],
+                type: "string[]"
+            },
+            "OldOwnerPlayerUIds": {
+                path: [
+                    "value", "RawData", "value", "object", "SaveParameter", "value", "OldOwnerPlayerUIds", "value", "values"
+                ],
+                type: "string[]"
+            },
+            "ContainerId": {
+                path: [
+                    "value", "RawData", "value", "object", "SaveParameter", "value", "SlotId", "value", "ContainerId", "value", "ID", "value"
+                ],
+                type: "string"
+            },
+            "SlotIndex": {
+                path: [
+                    "value", "RawData", "value", "object", "SaveParameter", "value", "SlotId", "value", "SlotIndex", "value"
+                ],
+                type: "number"
+            },
+            "FriendshipPoint": {
+                path: [
+                    "value", "RawData", "value", "object", "SaveParameter", "value", "FriendshipPoint", "value"
+                ],
+                type: "number"
+            },
+            "FriendshipBasecampSec": {
+                path: [
+                    "value", "RawData", "value", "object", "SaveParameter", "value", "FriendshipBasecampSec", "value"
+                ],
+                type: "number"
+            },
+            "OwnedTime": {
+                path: ["value", "RawData", "value", "object", "SaveParameter", "value", "OwnedTime", "value"],
+                type: "Date"
+            },
+            "OwnerPlayerUId": {
+                path: ["value", "RawData", "value", "object", "SaveParameter", "value", "OwnerPlayerUId", "value"],
+                type: "string"
+            },
+            "Rank": {
+                path: ["value", "RawData", "value", "object", "SaveParameter", "value", "Rank", "value", "value"],
+                type: "number"
+            }
+        }
+    },
+    "ItemContainer": {
+        "properties": {
+            "Id": {
+                path: ["key", "ID", "value"],
+                type: "string"
+            },
+            "BelongToGroup": {
+                path: ["value", "BelongInfo", "value", "GroupId", "value"],
+                type: "string"
+            },
+            "ControllableByOthers": {
+                path: ["value", "BelongInfo", "value", "bControllableOthers", "value"],
+                type: "boolean"
+            },
+            "SlotNum": {
+                path: ["value", "SlotNum", "value"],
+                type: "number"
+            },
+            "Slots": {
+                path: ["value", "Slots", "value", "values"],
+                type: "Slot[]"
+            }
+        }
+    },
+    "Slot": {
+        "properties": {
+            "Index": {
+                path: ["RawData", "value", "slot_index"],
+                type: "number"
+            },
+            "Count": {
+                path: ["RawData", "value", "count"],
+                type: "number"
+            },
+            "ItemId": {
+                path: ["RawData", "value", "item", "static_id"],
+                type: "string"
+            },
+            "DynamidId": {
+                path: ["RawData", "value", "item", "dynamic_id", "local_id_in_created_world"],
+                type: "string"
+            }
+        }
+    },
+    "CharacterContainer": {
         "properties": {
             "Id": {
                 path: ["key", "ID", "value"],
@@ -398,25 +403,25 @@ export const EntitySchemas: Record<string, EntityMeta> = {
                 path: ["value", "SlotNum", "value"],
                 type: "number"
             },
-            "Slots":{
+            "Slots": {
                 path: ["value", "Slots", "value", "values"],
                 type: "CharacterSlot[]"
             }
         }
     },
-    "CharacterSlot":{
+    "CharacterSlot": {
         properties: {
             "Index": {
                 path: ["SlotIndex", "value"],
                 type: "number"
             },
-            "PlayerUId":{
+            "PlayerUId": {
                 path: ["RawData", "value", "player_uid"],
-                type : "string"
+                type: "string"
             },
-            "InstanceId":{
+            "InstanceId": {
                 path: ["RawData", "value", "instance_id"],
-                type : "string"
+                type: "string"
             }
         }
     }

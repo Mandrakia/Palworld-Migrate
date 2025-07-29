@@ -20,6 +20,10 @@
 	let filterBoss = $state('all' as 'all' | 'boss' | 'normal');
 	let selectedElements = $state(new Set<string>()); // Set of selected elements (AND logic)
 	let selectedWorkSkills = $state(new Map<string, number>()); // Map of work skill to required level
+	let palNameSearch = $state(''); // Search term for pal names
+	let selectedPassiveSkills = $state(new Set<string>()); // Set of selected passive skill names (AND logic)
+	let passiveSkillSearch = $state(''); // Search term for passive skills dropdown
+	let showPassiveDropdown = $state(false); // Show/hide passive skills dropdown
 
 	function handlePalSelect(pal: any) {
 		// Could navigate to a detailed pal view if needed
@@ -170,7 +174,7 @@
 		return (pal.talentHP || 0) + (pal.talentShot || 0) + (pal.talentDefense || 0);
 	}
 
-	function filterPals(pals: any[], selectedGender: 'male' | 'female' | null, bossFilter: string, selectedElements: Set<string>, selectedWorkSkills: Map<string, number>) {
+	function filterPals(pals: any[], selectedGender: 'male' | 'female' | null, bossFilter: string, selectedElements: Set<string>, selectedWorkSkills: Map<string, number>, nameSearch: string, selectedPassiveSkills: Set<string>) {
 		return pals.filter(pal => {
 			// Gender filter
 			if (selectedGender) {
@@ -201,6 +205,21 @@
 				for (const [skillName, requiredLevel] of selectedWorkSkills) {
 					const palSkillLevel = pal.workSuitabilities?.[skillName] || 0;
 					if (palSkillLevel < requiredLevel) return false;
+				}
+			}
+
+			// Name search filter
+			if (nameSearch.trim()) {
+				const searchTerm = nameSearch.toLowerCase().trim();
+				const palName = (pal.displayName || pal.name || '').toLowerCase();
+				if (!palName.includes(searchTerm)) return false;
+			}
+
+			// Passive skills filter (AND logic - pal must have ALL selected passive skills)
+			if (selectedPassiveSkills.size > 0) {
+				const palPassiveSkills = new Set((pal.passiveSkills || []).map((skill: any) => skill.Name));
+				for (const skillName of selectedPassiveSkills) {
+					if (!palPassiveSkills.has(skillName)) return false;
 				}
 			}
 
@@ -266,13 +285,14 @@
 	// Reactive filtered and sorted pals
     let filteredAndSortedPals = $derived(() => {
 		if (!data.characterData.pals) return [];
-		const filtered = filterPals(data.characterData.pals, selectedGender, filterBoss, selectedElements, selectedWorkSkills);
+		const filtered = filterPals(data.characterData.pals, selectedGender, filterBoss, selectedElements, selectedWorkSkills, palNameSearch, selectedPassiveSkills);
 		return sortPals(filtered, sortBy, sortOrder);
 	});
 
-	// Get unique elements and work skills for filter options
+	// Get unique elements, work skills, and passive skills for filter options
 	let uniqueElements = $derived(data.characterData.pals ? getUniqueElements(data.characterData.pals) : []);
 	let uniqueWorkSkills = $derived(data.characterData.pals ? getUniqueWorkSkills(data.characterData.pals) : []);
+	let uniquePassiveSkills = $derived(data.characterData.pals ? getUniquePassiveSkills(data.characterData.pals) : []);
 
 	// Get unique work skills from all pals
 	function getUniqueWorkSkills(pals: any[]): string[] {
@@ -282,6 +302,21 @@
 				Object.entries(pal.workSuitabilities).forEach(([skill, level]) => {
 					if (level && (level as number) > 0) {
 						skills.add(skill);
+					}
+				});
+			}
+		});
+		return Array.from(skills).sort();
+	}
+
+	// Get unique passive skills from all pals
+	function getUniquePassiveSkills(pals: any[]): string[] {
+		const skills = new Set<string>();
+		pals.forEach(pal => {
+			if (pal.passiveSkills) {
+				pal.passiveSkills.forEach((skill: any) => {
+					if (skill.Name) {
+						skills.add(skill.Name);
 					}
 				});
 			}
@@ -310,7 +345,7 @@
 	}
 
 	// Work skill functions
-	function handleWorkSkillClick(skillName: string, event: MouseEvent) {
+	function handleWorkSkillFilterClick(skillName: string, event: MouseEvent) {
 		event.preventDefault();
 		
 		if (event.button === 0) { // Left click
@@ -340,6 +375,58 @@
 		selectedWorkSkills = new Map(selectedWorkSkills);
 	}
 
+	// Toggle passive skill filter
+	function togglePassiveSkill(skillName: string) {
+		if (selectedPassiveSkills.has(skillName)) {
+			selectedPassiveSkills.delete(skillName);
+		} else {
+			selectedPassiveSkills.add(skillName);
+		}
+		// Trigger reactivity
+		selectedPassiveSkills = new Set(selectedPassiveSkills);
+	}
+
+	// Filtered passive skills for dropdown
+	let filteredPassiveSkills = $derived(uniquePassiveSkills.filter(a=> a.toLowerCase().includes(passiveSkillSearch.toLowerCase())));
+
+	// Get passive skill rating and color from any pal that has this skill
+	function getPassiveSkillInfo(skillName: string) {
+		if (!data.characterData.pals) return { rating: 0, color: 'bg-slate-900/50 text-slate-300 border-slate-500' };
+		
+		for (const pal of data.characterData.pals) {
+			if (pal.passiveSkills) {
+				for (const skill of pal.passiveSkills) {
+					if (skill.Name === skillName) {
+						return {
+							rating: skill.Rating,
+							color: getPassiveSkillRatingColor(skill.Rating),
+							icon: getPassiveSkillRatingIcon(skill.Rating)
+						};
+					}
+				}
+			}
+		}
+		return { rating: 0, color: 'bg-slate-900/50 text-slate-300 border-slate-500' };
+	}
+
+	// Interactive click handlers for pal cards
+	function handleElementClick(element: string) {
+		toggleElement(element);
+	}
+
+	function handleWorkSkillClick(skillName: string, level: number) {
+		selectedWorkSkills.set(skillName, level);
+		selectedWorkSkills = new Map(selectedWorkSkills);
+	}
+
+	function handleTalentClick(talentType: string) {
+		sortBy = talentType;
+		// Toggle sort order if already sorting by this talent
+		if (sortBy === talentType) {
+			sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+		}
+	}
+
 	// Clear all filters
 	function clearAllFilters() {
 		selectedGender = null;
@@ -348,8 +435,20 @@
 		selectedElements = new Set(selectedElements);
 		selectedWorkSkills.clear();
 		selectedWorkSkills = new Map(selectedWorkSkills);
+		palNameSearch = '';
+		selectedPassiveSkills.clear();
+		selectedPassiveSkills = new Set(selectedPassiveSkills);
+		passiveSkillSearch = '';
+		showPassiveDropdown = false;
 	}
 
+	// Close dropdown when clicking outside
+	function handleClickOutside(event: Event) {
+		const target = event.target as HTMLElement;
+		if (!target.closest('.passive-skills-dropdown')) {
+			showPassiveDropdown = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -363,7 +462,7 @@
 	}
 </style>
 
-<div class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+<div class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" onclick={handleClickOutside}>
 	<!-- Header -->
 	<div class="bg-slate-800/50 backdrop-blur-sm border-b border-slate-700">
 		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -448,6 +547,17 @@
 
 						<!-- Filter Controls -->
 						<div class="border-t border-slate-700 pt-4 space-y-4">
+							<!-- Name Search Filter -->
+							<div>
+								<div class="text-sm text-slate-400 mb-2">Search by Name:</div>
+								<input
+									type="text"
+									bind:value={palNameSearch}
+									placeholder="Enter pal name..."
+									class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-400 focus:border-slate-500 focus:outline-none"
+								/>
+							</div>
+
 							<!-- Gender Filter -->
 							<div>
 								<div class="text-sm text-slate-400 mb-2 flex items-center space-x-2">
@@ -497,12 +607,12 @@
 									{#each uniqueElements as element}
 										<button
 											onclick={() => toggleElement(element)}
-											class="flex items-center space-x-1 px-3 py-2 rounded-lg border-2 transition-all {selectedElements.has(element) ? 'border-yellow-500 bg-yellow-500/20' : 'border-slate-600 hover:border-slate-500'}"
+											class="w-10 h-10 rounded-lg border-2 transition-all flex items-center justify-center {selectedElements.has(element) ? 'border-yellow-500 bg-yellow-500/20' : 'border-slate-600 hover:border-slate-500'}"
+											title={element}
 										>
 											{#if getElementIcon(element)}
-												<img src={getElementIcon(element)} alt={element} class="w-5 h-5" />
+												<img src={getElementIcon(element)} alt={element} class="w-6 h-6" />
 											{/if}
-											<span class="text-xs text-white">{element}</span>
 										</button>
 									{/each}
 								</div>
@@ -521,14 +631,14 @@
 									{#each uniqueWorkSkills as skillName}
 										{@const selectedLevel = selectedWorkSkills.get(skillName) || 0}
 										<button
-											onmousedown={(e) => handleWorkSkillClick(skillName, e)}
+											onmousedown={(e) => handleWorkSkillFilterClick(skillName, e)}
 											oncontextmenu={(e) => e.preventDefault()}
-											class="flex items-center space-x-1 px-3 py-2 rounded-lg border-2 transition-all relative {selectedLevel > 0 ? 'border-green-500 bg-green-500/20' : 'border-slate-600 hover:border-slate-500'}"
+											class="w-10 h-10 rounded-lg border-2 transition-all relative flex items-center justify-center {selectedLevel > 0 ? 'border-green-500 bg-green-500/20' : 'border-slate-600 hover:border-slate-500'}"
+											title="{getWorkSkillName(skillName)}{selectedLevel > 0 ? ` Lv.${selectedLevel}+` : ''}"
 										>
 											{#if getWorkSkillIcon(skillName)}
-												<img src={getWorkSkillIcon(skillName)} alt={getWorkSkillName(skillName)} class="w-5 h-5" />
+												<img src={getWorkSkillIcon(skillName)} alt={getWorkSkillName(skillName)} class="w-6 h-6" />
 											{/if}
-											<span class="text-xs text-white">{getWorkSkillName(skillName)}</span>
 											{#if selectedLevel > 0}
 												<span class="absolute -top-1 -right-1 w-5 h-5 bg-green-600 rounded-full flex items-center justify-center text-xs text-white font-bold">
 													{selectedLevel}
@@ -536,6 +646,84 @@
 											{/if}
 										</button>
 									{/each}
+								</div>
+							</div>
+
+							<!-- Passive Skills Filter -->
+							<div class="relative passive-skills-dropdown">
+								<div class="text-sm text-slate-400 mb-2 flex items-center space-x-2">
+									<span>Passive Skills:</span>
+									{#if selectedPassiveSkills.size > 0}
+										<span class="text-xs text-blue-400">({selectedPassiveSkills.size} selected - AND logic)</span>
+									{/if}
+									<span class="text-xs text-slate-500">({uniquePassiveSkills.length} available)</span>
+								</div>
+								
+								<!-- Selected Skills Display -->
+								{#if selectedPassiveSkills.size > 0}
+									<div class="flex flex-wrap gap-1 mb-2">
+										{#each Array.from(selectedPassiveSkills) as skillName}
+											{@const skillInfo = getPassiveSkillInfo(skillName)}
+											<div class="flex items-center space-x-1 px-2 py-1 rounded border text-xs {skillInfo.color}">
+												{#if skillInfo.icon}
+													<img src={skillInfo.icon} alt="Rating {skillInfo.rating}" class="w-3 h-3 {skillInfo.rating === -1 ? 'red-mask' : ''}" />
+												{/if}
+												<span class="truncate max-w-20">{skillName}</span>
+												<button onclick={() => togglePassiveSkill(skillName)} class="text-red-400 hover:text-red-300 ml-1">
+													×
+												</button>
+											</div>
+										{/each}
+									</div>
+								{/if}
+
+								<!-- Search Input -->
+								<div class="relative">
+									<input
+										type="text"
+										bind:value={passiveSkillSearch}
+										onfocus={() => showPassiveDropdown = true}
+										oninput={() => showPassiveDropdown = true}
+										onkeydown={(e) => {
+											if (e.key === 'Escape') {
+												showPassiveDropdown = false;
+												passiveSkillSearch = '';
+											}
+										}}
+										placeholder="Search passive skills..."
+										class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-400 focus:border-slate-500 focus:outline-none"
+									/>
+									
+									<!-- Dropdown -->
+									{#if showPassiveDropdown}
+										<div class="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-lg max-h-48 overflow-y-auto z-50">
+											{#if filteredPassiveSkills.length > 0}
+												{#each filteredPassiveSkills as skillName}
+													{@const skillInfo = getPassiveSkillInfo(skillName)}
+													<button
+														onclick={() => {
+															togglePassiveSkill(skillName);
+															passiveSkillSearch = '';
+															showPassiveDropdown = false;
+														}}
+														class="w-full flex items-center space-x-2 px-3 py-2 text-left hover:bg-slate-700 transition-colors border {skillInfo.color} text-xs"
+													>
+														{#if skillInfo.icon}
+															<img src={skillInfo.icon} alt="Rating {skillInfo.rating}" class="w-4 h-4 flex-shrink-0 {skillInfo.rating === -1 ? 'red-mask' : ''}" />
+														{/if}
+														<span class="flex-1">{skillName}</span>
+														{#if selectedPassiveSkills.has(skillName)}
+															<span class="text-green-400">✓</span>
+														{/if}
+													</button>
+												{/each}
+											{:else}
+												<div class="px-3 py-2 text-slate-400 text-xs text-center">
+													{passiveSkillSearch.trim() ? 'No skills found' : 'Start typing to search...'}
+												</div>
+											{/if}
+										</div>
+									{/if}
 								</div>
 							</div>
 
@@ -560,13 +748,15 @@
 								{#if filteredAndSortedPals().length !== (data.characterData.pals?.length || 0)}
 									<span class="text-blue-400">(filtered)</span>
 								{/if}
-								{#if selectedGender || filterBoss !== 'all' || selectedElements.size > 0 || selectedWorkSkills.size > 0}
+								{#if selectedGender || filterBoss !== 'all' || selectedElements.size > 0 || selectedWorkSkills.size > 0 || palNameSearch.trim() || selectedPassiveSkills.size > 0}
 									<span class="text-orange-400 text-xs ml-2">
 										[Active filters: 
 										{#if selectedGender}Gender: {selectedGender}{/if}
 										{#if filterBoss !== 'all'}{selectedGender ? ', ' : ''}Type: {filterBoss}{/if}
-										{#if selectedElements.size > 0}{selectedGender || filterBoss !== 'all' ? ', ' : ''}Elements: {selectedElements.size}{/if}
-										{#if selectedWorkSkills.size > 0}{selectedGender || filterBoss !== 'all' || selectedElements.size > 0 ? ', ' : ''}Work: {selectedWorkSkills.size}{/if}
+										{#if palNameSearch.trim()}{selectedGender || filterBoss !== 'all' ? ', ' : ''}Name: "{palNameSearch}"{/if}
+										{#if selectedElements.size > 0}{selectedGender || filterBoss !== 'all' || palNameSearch.trim() ? ', ' : ''}Elements: {selectedElements.size}{/if}
+										{#if selectedWorkSkills.size > 0}{selectedGender || filterBoss !== 'all' || selectedElements.size > 0 || palNameSearch.trim() ? ', ' : ''}Work: {selectedWorkSkills.size}{/if}
+										{#if selectedPassiveSkills.size > 0}{selectedGender || filterBoss !== 'all' || selectedElements.size > 0 || selectedWorkSkills.size > 0 || palNameSearch.trim() ? ', ' : ''}Passive: {selectedPassiveSkills.size}{/if}
 										]
 									</span>
 								{/if}
@@ -590,14 +780,6 @@
 													src={getPalIconUrl(pal.characterId)} 
 													alt={pal.name}
 													class="w-full h-full object-cover rounded-full"
-													onerror={(event) => {
-														// Fallback to emoji on error
-														const target = event.target as HTMLImageElement;
-														if (target) {
-															target.style.display = 'none';
-															target.parentElement!.innerHTML = '🐾';
-														}
-													}}
 												/>
 											{:else}
 												🐾
@@ -619,7 +801,7 @@
 											{/if}
 											{#if pal.rarity}
 												<span>•</span>
-												<span class="text-yellow-400">{'★'.repeat(Math.min(pal.rarity, 5))}</span>
+												<span class="text-yellow-400">{'★'.repeat(Math.min(pal.rank - 1, 5))}</span>
 											{/if}
 										</div>
 									</div>
@@ -643,20 +825,28 @@
 									<div class="text-xs text-slate-400 uppercase tracking-wide mb-2">Elements</div>
 									<div class="flex space-x-2">
 										{#if pal.elementType1 && pal.elementType1 !== 'None'}
-											<div class="flex items-center space-x-1 {getElementColor(pal.elementType1)} px-2 py-1 rounded text-xs">
+											<button 
+												onclick={() => handleElementClick(pal.elementType1)}
+												class="flex items-center space-x-1 {getElementColor(pal.elementType1)} px-2 py-1 rounded text-xs hover:scale-105 transition-transform cursor-pointer"
+												title="Click to filter by {pal.elementType1}"
+											>
 												{#if getElementIcon(pal.elementType1)}
 													<img src={getElementIcon(pal.elementType1)} alt={pal.elementType1} class="w-4 h-4" />
 												{/if}
 												<span>{pal.elementType1}</span>
-											</div>
+											</button>
 										{/if}
 										{#if pal.elementType2 && pal.elementType2 !== 'None'}
-											<div class="flex items-center space-x-1 {getElementColor(pal.elementType2)} px-2 py-1 rounded text-xs">
+											<button 
+												onclick={() => handleElementClick(pal.elementType2)}
+												class="flex items-center space-x-1 {getElementColor(pal.elementType2)} px-2 py-1 rounded text-xs hover:scale-105 transition-transform cursor-pointer"
+												title="Click to filter by {pal.elementType2}"
+											>
 												{#if getElementIcon(pal.elementType2)}
 													<img src={getElementIcon(pal.elementType2)} alt={pal.elementType2} class="w-4 h-4" />
 												{/if}
 												<span>{pal.elementType2}</span>
-											</div>
+											</button>
 										{/if}
 									</div>
 								</div>
@@ -670,15 +860,19 @@
 										<div class="text-xs text-slate-400 uppercase tracking-wide mb-2">Work Skills</div>
 										<div class="grid grid-cols-2 gap-2">
 											{#each workSkills.slice(0, 6) as [skill, level]}
-												<div class="bg-slate-700 rounded px-3 py-3 text-xs flex items-center space-x-3">
+												<button 
+													onclick={() => handleWorkSkillClick(skill, level)}
+													class="bg-slate-700 hover:bg-slate-600 rounded px-3 py-3 text-xs flex items-center space-x-3 transition-colors cursor-pointer w-full"
+													title="Click to filter by {getWorkSkillName(skill)} Lv.{level}+"
+												>
 													{#if getWorkSkillIcon(skill)}
 														<img src={getWorkSkillIcon(skill)} alt={getWorkSkillName(skill)} class="w-8 h-8 flex-shrink-0" />
 													{/if}
-													<div class="flex-1 min-w-0">
+													<div class="flex-1 min-w-0 text-left">
 														<div class="text-slate-300 text-xs truncate">{getWorkSkillName(skill)}</div>
 														<div class="text-orange-400 font-semibold">Lv.{level}</div>
 													</div>
-												</div>
+												</button>
 											{/each}
 											{#if workSkills.length > 6}
 												<div class="bg-slate-700 rounded px-3 py-3 text-xs flex items-center justify-center text-slate-400">
@@ -701,22 +895,34 @@
 									</div>
 									<div class="grid grid-cols-3 gap-2">
 										{#if pal.talentHP}
-											<div class="bg-slate-700 rounded p-2 text-center {sortBy === 'talentHP' ? 'ring-2 ring-red-400' : ''}">
+											<button 
+												onclick={() => handleTalentClick('talentHP')}
+												class="bg-slate-700 hover:bg-slate-600 rounded p-2 text-center transition-colors cursor-pointer {sortBy === 'talentHP' ? 'ring-2 ring-red-400' : ''}"
+												title="Click to sort by HP talent"
+											>
 												<div class="text-red-400 text-xs">❤️ HP</div>
 												<div class="text-white font-semibold">{pal.talentHP}</div>
-											</div>
+											</button>
 										{/if}
 										{#if pal.talentShot}
-											<div class="bg-slate-700 rounded p-2 text-center {sortBy === 'talentShot' ? 'ring-2 ring-orange-400' : ''}">
+											<button 
+												onclick={() => handleTalentClick('talentShot')}
+												class="bg-slate-700 hover:bg-slate-600 rounded p-2 text-center transition-colors cursor-pointer {sortBy === 'talentShot' ? 'ring-2 ring-orange-400' : ''}"
+												title="Click to sort by Attack talent"
+											>
 												<div class="text-orange-400 text-xs">⚔️ ATK</div>
 												<div class="text-white font-semibold">{pal.talentShot}</div>
-											</div>
+											</button>
 										{/if}
 										{#if pal.talentDefense}
-											<div class="bg-slate-700 rounded p-2 text-center {sortBy === 'talentDefense' ? 'ring-2 ring-blue-400' : ''}">
+											<button 
+												onclick={() => handleTalentClick('talentDefense')}
+												class="bg-slate-700 hover:bg-slate-600 rounded p-2 text-center transition-colors cursor-pointer {sortBy === 'talentDefense' ? 'ring-2 ring-blue-400' : ''}"
+												title="Click to sort by Defense talent"
+											>
 												<div class="text-blue-400 text-xs">🛡️ DEF</div>
 												<div class="text-white font-semibold">{pal.talentDefense}</div>
-											</div>
+											</button>
 										{/if}
 									</div>
 								</div>
@@ -728,7 +934,11 @@
 									<div class="text-xs text-slate-400 uppercase tracking-wide mb-2">Passive Skills</div>
 									<div class="space-y-2">
 										{#each pal.passiveSkills as skill}
-											<div class="flex items-start space-x-2 p-2 rounded border {getPassiveSkillRatingColor(skill.Rating)}">
+											<button 
+												onclick={() => togglePassiveSkill(skill.Name)}
+												class="flex items-start space-x-2 p-2 rounded border transition-colors cursor-pointer hover:brightness-110 {getPassiveSkillRatingColor(skill.Rating)} w-full text-left"
+												title="Click to filter by {skill.Name}"
+											>
 												<div class="flex-shrink-0">
 													{#if getPassiveSkillRatingIcon(skill.Rating)}
 														<img 
@@ -742,7 +952,7 @@
 													<div class="text-sm font-medium truncate">{skill.Name}</div>
 													<div class="text-xs opacity-75 mt-1">{skill.Description}</div>
 												</div>
-											</div>
+											</button>
 										{/each}
 									</div>
 								</div>

@@ -89,14 +89,6 @@
 							src={getPalIconUrl(character.characterId)} 
 							alt={character.name}
 							class="w-full h-full object-cover rounded-full"
-							onerror={() => {
-								// Fallback to emoji on error
-								const target = event?.target as HTMLImageElement;
-								if (target) {
-									target.style.display = 'none';
-									target.parentElement!.innerHTML = '🐾';
-								}
-							}}
 						/>
 					{:else}
 						{getCharacterTypeIcon()}

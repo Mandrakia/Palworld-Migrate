@@ -104,7 +104,8 @@ export function toPalCard(pWorld: Pal, serverSave: ServerSave, isCamp: boolean =
             monsterFarm: palData.WorkSuitability_MonsterFarm
         } : undefined,
         isBoss: isBossFromId || palData?.IsBoss,
-        price: palData?.Price
+        price: palData?.Price,
+        rank: pWorld.Rank ?? 1
     };
 }
 
