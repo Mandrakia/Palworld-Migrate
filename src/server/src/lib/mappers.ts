@@ -117,7 +117,6 @@ export function toFullPlayerCard(pWorld: Player, pSave: CharacterSave, serverSav
     }
     playerContainers.push(pSave.CharacterPalsContainerId);
     playerContainers.push(pSave.PalStorageContainerId);
-    console.log(playerContainers);
     const pals = serverSave.Characters.filter(a => a instanceof Pal && a.OwnerPlayerUId === playerId && playerContainers.includes(a.ContainerId)).map(a => toPalCard(a as Pal, serverSave));
     return {...toPlayerCard(pWorld, pSave, serverSave), pals};
 }

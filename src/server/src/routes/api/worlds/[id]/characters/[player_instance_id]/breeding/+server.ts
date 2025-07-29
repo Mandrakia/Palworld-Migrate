@@ -34,7 +34,6 @@ function breed(pal1 : PalCardData, pal2 : PalCardData, serverSave : ServerSave) 
     var combination = bData1?.Combinations.filter(a=> (a.ParentTribeA == pal1.characterId && a.ParentTribeB == pal2.characterId) || (a.ParentTribeA == pal2.characterId && a.ParentTribeB == pal1.characterId));
     let closest: PalDatabaseEntry;
     if(combination?.length) {
-        console.log(combination);
         var res = combination[0].ChildCharacterID;
         closest = getPalData(res);
     }
@@ -141,7 +140,6 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
         }
         playerContainers.push(pSave.CharacterPalsContainerId);
         playerContainers.push(pSave.PalStorageContainerId);
-        console.log(playerContainers);
         const pals = serverSave.Characters.filter(a => a instanceof Pal && a.OwnerPlayerUId === playerId && playerContainers.includes(a.ContainerId)).map(a => toPalCard(a as Pal, serverSave));
 
         // Filter pals by gender
