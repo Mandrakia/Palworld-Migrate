@@ -197,35 +197,49 @@ class SaveFileWatcher {
   private startWatching(): void {
     const savePath = environment.savePath;
     
-    // Only watch specific files: Level.sav and Players/*.sav
-    // Use glob patterns that work with chokidar
-    const watchPatterns = [
-      join(savePath, '**', 'Level.sav'),
-      join(savePath, '**', 'Players', '*.sav')
-    ];
-    
+    // Watch the entire save directory and filter events
     console.log('SaveFileWatcher: Setting up file watching...');
-    console.log('SaveFileWatcher: Base path:', savePath);
-    console.log('SaveFileWatcher: Watch patterns:', watchPatterns);
+    console.log('SaveFileWatcher: Watching path:', savePath);
     
-    this.watcher = watch(watchPatterns, {
+    this.watcher = watch(savePath, {
       ignored: /\.tmp$|\.temp$/,
       persistent: true,
-      ignoreInitial: true
+      ignoreInitial: true,
+      usePolling: false,
+      interval: 1000,
+      binaryInterval: 3000,
+      alwaysStat: true,
+      depth: 99,
+      awaitWriteFinish: {
+        stabilityThreshold: 2000,
+        pollInterval: 100
+      }
     });
 
     this.watcher
       .on('change', (path) => {
         console.log('SaveFileWatcher: File changed:', path);
-        this.handleFileChange(path);
+        if (this.isRelevantFile(path)) {
+          this.handleFileChange(path);
+        } else {
+          console.log('SaveFileWatcher: Ignoring irrelevant file:', path);
+        }
       })
       .on('add', (path) => {
         console.log('SaveFileWatcher: File added:', path);
-        this.handleFileAdd(path);
+        if (this.isRelevantFile(path)) {
+          this.handleFileAdd(path);
+        } else {
+          console.log('SaveFileWatcher: Ignoring irrelevant file:', path);
+        }
       })
       .on('unlink', (path) => {
         console.log('SaveFileWatcher: File deleted:', path);
-        this.handleFileDelete(path);
+        if (this.isRelevantFile(path)) {
+          this.handleFileDelete(path);
+        } else {
+          console.log('SaveFileWatcher: Ignoring irrelevant file:', path);
+        }
       })
       .on('error', (error) => console.error('SaveFileWatcher: File watcher error:', error))
       .on('ready', () => console.log('SaveFileWatcher: Ready and watching for changes'))
@@ -234,7 +248,18 @@ class SaveFileWatcher {
       });
 
     console.log(`SaveFileWatcher: Started watching save files in: ${savePath}`);
-    console.log('SaveFileWatcher: Patterns:', watchPatterns);
+  }
+
+  private isRelevantFile(filePath: string): boolean {
+    const fileName = basename(filePath);
+    const isLevelSav = fileName === 'Level.sav';
+    const isPlayerSav = filePath.includes('/Players/') && fileName.endsWith('.sav');
+    
+    console.log(`SaveFileWatcher: Checking file relevance: ${filePath}`);
+    console.log(`SaveFileWatcher: - Is Level.sav: ${isLevelSav}`);
+    console.log(`SaveFileWatcher: - Is Player .sav: ${isPlayerSav}`);
+    
+    return isLevelSav || isPlayerSav;
   }
 
   private handleFileChange(filePath: string): void {
@@ -307,7 +332,7 @@ class SaveFileWatcher {
       if (serverCache) {
         // Remove old version if exists
         serverCache.players = serverCache.players.filter(p => 
-          p.PlayerId !== character.PlayerId
+          p.PlayerUid !== character.PlayerUid
         );
         
         // Add new version
@@ -330,7 +355,7 @@ class SaveFileWatcher {
       serverCache.players = serverCache.players.filter(p => {
         // Remove based on guid since we may not have PlayerId
         return !serverCache.playerFiles[guid] || 
-               p.PlayerId !== serverCache.playerFiles[guid].character.PlayerId;
+               p.PlayerUid !== serverCache.playerFiles[guid].character.PlayerUid;
       });
       
       delete serverCache.playerFiles[guid];
