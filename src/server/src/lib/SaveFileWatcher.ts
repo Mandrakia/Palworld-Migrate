@@ -60,18 +60,28 @@ class SaveFileWatcher {
 
   private async getServerDirectories(): Promise<string[]> {
     const savePath = environment.savePath;
-    const entries = await readdir(savePath);
-    const directories: string[] = [];
+    console.log('SaveFileWatcher: Getting server directories from:', savePath);
     
-    for (const entry of entries) {
-      const fullPath = join(savePath, entry);
-      const stats = await stat(fullPath);
-      if (stats.isDirectory()) {
-        directories.push(entry);
+    try {
+      const entries = await readdir(savePath);
+      console.log('SaveFileWatcher: Found entries:', entries);
+      const directories: string[] = [];
+      
+      for (const entry of entries) {
+        const fullPath = join(savePath, entry);
+        const stats = await stat(fullPath);
+        if (stats.isDirectory()) {
+          directories.push(entry);
+          console.log('SaveFileWatcher: Added server directory:', entry);
+        }
       }
+      
+      console.log('SaveFileWatcher: Final server directories:', directories);
+      return directories;
+    } catch (error) {
+      console.error('SaveFileWatcher: Error reading server directories:', error);
+      return [];
     }
-    
-    return directories;
   }
 
   private async loadServerCache(serverId: string): Promise<void> {
@@ -188,10 +198,15 @@ class SaveFileWatcher {
     const savePath = environment.savePath;
     
     // Only watch specific files: Level.sav and Players/*.sav
+    // Use glob patterns that work with chokidar
     const watchPatterns = [
-      join(savePath, '*/Level.sav'),
-      join(savePath, '*/Players/*.sav')
+      join(savePath, '**', 'Level.sav'),
+      join(savePath, '**', 'Players', '*.sav')
     ];
+    
+    console.log('SaveFileWatcher: Setting up file watching...');
+    console.log('SaveFileWatcher: Base path:', savePath);
+    console.log('SaveFileWatcher: Watch patterns:', watchPatterns);
     
     this.watcher = watch(watchPatterns, {
       ignored: /\.tmp$|\.temp$/,
@@ -200,12 +215,26 @@ class SaveFileWatcher {
     });
 
     this.watcher
-      .on('change', (path) => this.handleFileChange(path))
-      .on('add', (path) => this.handleFileAdd(path))
-      .on('unlink', (path) => this.handleFileDelete(path))
-      .on('error', (error) => console.error('File watcher error:', error));
+      .on('change', (path) => {
+        console.log('SaveFileWatcher: File changed:', path);
+        this.handleFileChange(path);
+      })
+      .on('add', (path) => {
+        console.log('SaveFileWatcher: File added:', path);
+        this.handleFileAdd(path);
+      })
+      .on('unlink', (path) => {
+        console.log('SaveFileWatcher: File deleted:', path);
+        this.handleFileDelete(path);
+      })
+      .on('error', (error) => console.error('SaveFileWatcher: File watcher error:', error))
+      .on('ready', () => console.log('SaveFileWatcher: Ready and watching for changes'))
+      .on('raw', (event, path, details) => {
+        console.log('SaveFileWatcher: Raw event:', event, 'for path:', path);
+      });
 
-    console.log(`Started watching save files: Level.sav and Players/*.sav in: ${savePath}`);
+    console.log(`SaveFileWatcher: Started watching save files in: ${savePath}`);
+    console.log('SaveFileWatcher: Patterns:', watchPatterns);
   }
 
   private handleFileChange(filePath: string): void {
