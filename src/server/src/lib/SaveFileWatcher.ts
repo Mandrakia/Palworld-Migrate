@@ -221,31 +221,22 @@ class SaveFileWatcher {
         console.log('SaveFileWatcher: File changed:', path);
         if (this.isRelevantFile(path)) {
           this.handleFileChange(path);
-        } else {
-          console.log('SaveFileWatcher: Ignoring irrelevant file:', path);
         }
       })
       .on('add', (path) => {
         console.log('SaveFileWatcher: File added:', path);
         if (this.isRelevantFile(path)) {
           this.handleFileAdd(path);
-        } else {
-          console.log('SaveFileWatcher: Ignoring irrelevant file:', path);
         }
       })
       .on('unlink', (path) => {
         console.log('SaveFileWatcher: File deleted:', path);
         if (this.isRelevantFile(path)) {
           this.handleFileDelete(path);
-        } else {
-          console.log('SaveFileWatcher: Ignoring irrelevant file:', path);
         }
       })
       .on('error', (error) => console.error('SaveFileWatcher: File watcher error:', error))
-      .on('ready', () => console.log('SaveFileWatcher: Ready and watching for changes'))
-      .on('raw', (event, path, details) => {
-        console.log('SaveFileWatcher: Raw event:', event, 'for path:', path);
-      });
+      .on('ready', () => console.log('SaveFileWatcher: Ready and watching for changes'));
 
     console.log(`SaveFileWatcher: Started watching save files in: ${savePath}`);
   }
@@ -254,30 +245,22 @@ class SaveFileWatcher {
     const fileName = basename(filePath);
     const isLevelSav = fileName === 'Level.sav';
     const isPlayerSav = filePath.includes('/Players/') && fileName.endsWith('.sav');
-    
-    console.log(`SaveFileWatcher: Checking file relevance: ${filePath}`);
-    console.log(`SaveFileWatcher: - Is Level.sav: ${isLevelSav}`);
-    console.log(`SaveFileWatcher: - Is Player .sav: ${isPlayerSav}`);
-    
     return isLevelSav || isPlayerSav;
   }
 
   private handleFileChange(filePath: string): void {
     this.debounceFileOperation(filePath, () => {
-      console.log(`File changed: ${filePath}`);
       this.processFileChange(filePath);
     });
   }
 
   private handleFileAdd(filePath: string): void {
     this.debounceFileOperation(filePath, () => {
-      console.log(`File added: ${filePath}`);
       this.processFileChange(filePath);
     });
   }
 
   private handleFileDelete(filePath: string): void {
-    console.log(`File deleted: ${filePath}`);
     this.processFileDelete(filePath);
   }
 
