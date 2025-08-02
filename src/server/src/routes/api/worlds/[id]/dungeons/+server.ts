@@ -28,6 +28,11 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
         const serverGameTime = serverSave.GameTime;
         const serverRealTime = serverSave.RealTime;
         
+        // Debug logging
+        console.log('Server GameTime:', serverGameTime);
+        console.log('Server RealTime:', serverRealTime);
+        console.log('Current Unix timestamp:', Math.floor(Date.now() / 1000));
+        
         // Calculate the offset between game time and real time
         const gameToRealOffset = serverRealTime - serverGameTime;
         
@@ -42,6 +47,18 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
                 // Convert game time to real time, then to Unix timestamp
                 const realTimeTicks = state.DisappearTimeAt + gameToRealOffset;
                 disappearAt = Math.floor((realTimeTicks - 621355968000000000) / 10000 / 1000);
+                
+                // Debug for first dungeon with DisappearTimeAt
+                if (state.DisappearTimeAt && !disappearAt || disappearAt < 0) {
+                    console.log('Dungeon Debug:', {
+                        dungeonId: dungeon.Id,
+                        disappearTimeAt: state.DisappearTimeAt,
+                        gameToRealOffset,
+                        realTimeTicks,
+                        disappearAt,
+                        calculation: `(${realTimeTicks} - 621355968000000000) / 10000 / 1000`
+                    });
+                }
             }
             
             if (state?.RespawnBossTimeAt) {
