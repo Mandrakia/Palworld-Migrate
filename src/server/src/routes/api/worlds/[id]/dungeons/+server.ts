@@ -44,44 +44,31 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
             let respawnAt: number | null = null;
             
             if (state?.DisappearTimeAt) {
-                // Try different approaches to see what works
+                // Calculate time difference in game time
+                const diff = state.DisappearTimeAt - serverGameTime;
                 
-                // Approach 1: DisappearTimeAt is already Unix time in ticks
-                const approach1 = Math.floor(state.DisappearTimeAt / 10000 / 1000);
+                // Calculate ratio between real time and game time
+                const ratio = serverRealTime / serverGameTime;
                 
-                // Approach 2: DisappearTimeAt is .NET DateTime ticks
-                const approach2 = Math.floor((state.DisappearTimeAt - 621355968000000000) / 10000 / 1000);
+                // Apply ratio to get real time span
+                const spanLeft = diff * ratio;
                 
-                // Approach 3: Game time difference method
-                const gameTimeDiff = state.DisappearTimeAt - serverGameTime;
-                const currentUnixTime = Math.floor(serverRealTime / 10000 / 1000);
-                const approach3 = currentUnixTime + Math.floor(gameTimeDiff / 10000 / 1000);
-                
-                // Current timestamp for comparison
-                const nowUnix = Math.floor(Date.now() / 1000);
-                
-                console.log('Testing approaches:', {
-                    dungeonId: dungeon.Id,
-                    disappearTimeAt: state.DisappearTimeAt,
-                    serverGameTime,
-                    serverRealTime,
-                    currentUnix: nowUnix,
-                    approach1: { value: approach1, minutesFromNow: (approach1 - nowUnix) / 60 },
-                    approach2: { value: approach2, minutesFromNow: (approach2 - nowUnix) / 60 },
-                    approach3: { value: approach3, minutesFromNow: (approach3 - nowUnix) / 60 },
-                    shouldBe137mins: 'Which approach gives ~137 minutes?'
-                });
-                
-                // For now, use approach 1
-                disappearAt = approach1;
+                // Convert to Unix timestamp
+                disappearAt = Math.floor((serverRealTime + spanLeft) / 10000 / 1000);
             }
             
             if (state?.RespawnBossTimeAt) {
-                // RespawnBossTimeAt is in game time ticks, convert to real time
-                const gameTimeDiff = state.RespawnBossTimeAt - serverGameTime;
-                const currentUnixTime = Math.floor(serverRealTime / 10000 / 1000);
-                const gameTimeDiffSeconds = Math.floor(gameTimeDiff / 10000 / 1000);
-                respawnAt = currentUnixTime + gameTimeDiffSeconds;
+                // Calculate time difference in game time
+                const diff = state.RespawnBossTimeAt - serverGameTime;
+                
+                // Calculate ratio between real time and game time
+                const ratio = serverRealTime / serverGameTime;
+                
+                // Apply ratio to get real time span
+                const spanLeft = diff * ratio;
+                
+                // Convert to Unix timestamp
+                respawnAt = Math.floor((serverRealTime + spanLeft) / 10000 / 1000);
             }
             
             return {
@@ -90,7 +77,8 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
                 DisappearAtTicks: state?.DisappearTimeAt, 
                 RespawnAtTicks: state?.RespawnBossTimeAt,
                 DisappearAt: disappearAt,
-                RespawnAt: respawnAt
+                RespawnAt: respawnAt,
+                TimeDiff: state?.DisappearTimeAt - serverSave.GameTime,
             }
 
         }));
