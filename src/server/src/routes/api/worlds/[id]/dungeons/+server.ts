@@ -54,7 +54,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
                 const spanLeft = diff * ratio;
                 
                 // Convert to Unix timestamp
-                disappearAt = Math.floor((serverRealTime + spanLeft) / 10000 / 1000);
+                disappearAt = spanLeft
             }
             
             if (state?.RespawnBossTimeAt) {
