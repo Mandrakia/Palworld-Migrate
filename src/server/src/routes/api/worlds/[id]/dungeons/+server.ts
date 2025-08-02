@@ -46,10 +46,15 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
             if (state?.DisappearTimeAt) {
                 // DisappearTimeAt is in game time ticks, convert to real time
                 const gameTimeDiff = state.DisappearTimeAt - serverGameTime;
-                const realTimeTicks = serverRealTime + gameTimeDiff;
                 
-                // serverRealTime appears to be Unix time in ticks, not .NET DateTime
-                disappearAt = Math.floor(realTimeTicks / 10000 / 1000);
+                // Convert current server real time ticks to Unix timestamp
+                const currentUnixTime = Math.floor(serverRealTime / 10000 / 1000);
+                
+                // Convert game time difference to real time seconds
+                // Game time seems to run at same rate as real time (1:1 ratio)
+                const gameTimeDiffSeconds = Math.floor(gameTimeDiff / 10000 / 1000);
+                
+                disappearAt = currentUnixTime + gameTimeDiffSeconds;
                 
                 // Debug for first dungeon with DisappearTimeAt
                 console.log('Dungeon Debug:', {
@@ -58,19 +63,20 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
                     serverGameTime,
                     serverRealTime,
                     gameTimeDiff,
-                    realTimeTicks,
+                    gameTimeDiffSeconds,
+                    currentUnixTime,
                     disappearAt,
-                    serverRealTimeAsUnix: Math.floor(serverRealTime / 10000 / 1000),
-                    currentUnix: Math.floor(Date.now() / 1000),
-                    calculation: `${realTimeTicks} / 10000 / 1000`
+                    minutesFromNow: gameTimeDiffSeconds / 60,
+                    shouldBe137mins: 'Check if minutesFromNow ≈ 137'
                 });
             }
             
             if (state?.RespawnBossTimeAt) {
                 // RespawnBossTimeAt is in game time ticks, convert to real time
                 const gameTimeDiff = state.RespawnBossTimeAt - serverGameTime;
-                const realTimeTicks = serverRealTime + gameTimeDiff;
-                respawnAt = Math.floor(realTimeTicks / 10000 / 1000);
+                const currentUnixTime = Math.floor(serverRealTime / 10000 / 1000);
+                const gameTimeDiffSeconds = Math.floor(gameTimeDiff / 10000 / 1000);
+                respawnAt = currentUnixTime + gameTimeDiffSeconds;
             }
             
             return {
