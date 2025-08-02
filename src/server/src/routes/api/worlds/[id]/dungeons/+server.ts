@@ -28,6 +28,9 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
         const serverGameTime = serverSave.GameTime;
         const serverRealTime = serverSave.RealTime;
         
+        // Calculate the offset between game time and real time
+        const gameToRealOffset = serverRealTime - serverGameTime;
+        
         return json(dungeons.map(dungeon=>{
             const state : DungeonSaveData = serverSave.DungeonSaveData.find(a=> a.MarkerPointId === dungeon.Id)
             
@@ -36,14 +39,14 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
             let respawnAt: number | null = null;
             
             if (state?.DisappearTimeAt) {
-                const gameTimeDiff = state.DisappearTimeAt - serverGameTime;
-                const realTimeTicks = serverRealTime + gameTimeDiff;
+                // Convert game time to real time, then to Unix timestamp
+                const realTimeTicks = state.DisappearTimeAt + gameToRealOffset;
                 disappearAt = Math.floor((realTimeTicks - 621355968000000000) / 10000 / 1000);
             }
             
             if (state?.RespawnBossTimeAt) {
-                const gameTimeDiff = state.RespawnBossTimeAt - serverGameTime;
-                const realTimeTicks = serverRealTime + gameTimeDiff;
+                // Convert game time to real time, then to Unix timestamp
+                const realTimeTicks = state.RespawnBossTimeAt + gameToRealOffset;
                 respawnAt = Math.floor((realTimeTicks - 621355968000000000) / 10000 / 1000);
             }
             
