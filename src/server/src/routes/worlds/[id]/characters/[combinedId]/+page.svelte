@@ -792,7 +792,7 @@
 										{/if}
 									</div>
 									<div class="min-w-0">
-										<h3 class="text-white font-semibold truncate">{pal.displayName || pal.name}</h3>
+										<h3 class="text-white font-semibold truncate">{pal.name}</h3>
 										<div class="flex items-center space-x-2 text-xs text-slate-400">
 											<span class="{sortBy === 'level' ? 'text-blue-400 font-bold' : ''}">Level {pal.level}</span>
 											{#if pal.zukanIndex}

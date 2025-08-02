@@ -30,3 +30,16 @@ export interface ApiError {
   message: string;
   code?: string;
 }
+
+export interface Dungeon {
+    Name:string;
+    Id:string;
+    X: number;
+    Y: number;
+    Z: number;
+}
+export interface DungeonWithState extends Dungeon {
+    IsActive: boolean;
+    DisappearAtTicks: number;
+    RespawnAtTicks: number;
+}

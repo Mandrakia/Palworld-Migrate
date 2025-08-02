@@ -12,8 +12,6 @@
 	let serverDropdownOpen = false;
 	let versionDropdownOpen = false;
 	
-	// Current view for left panel
-	let currentView = 'players';
 	
 	$: currentServerData = servers.find(s => s.Id === selectedServer);
 	$: availableVersions = currentServerData ? ['Live', ...currentServerData.Backups] : ['Live'];
@@ -77,9 +75,6 @@
 		}
 	}
 	
-	function setView(view: string) {
-		currentView = view;
-	}
 	
 	function formatDateTime(dateTimeString: string): string {
 		if (dateTimeString === 'Live') return dateTimeString;
@@ -232,76 +227,9 @@
 
 	<!-- Main Content Area -->
 	<div class="flex-1 flex overflow-hidden">
-		<!-- Left Panel -->
-		<aside class="w-[350px] bg-slate-800 border-r border-slate-700 overflow-y-auto">
-			<div class="p-4">
-				<h2 class="text-lg font-semibold text-white mb-4">
-					{#if currentView === 'players'}
-						Characters
-					{:else if currentView === 'containers'}
-						Containers
-					{:else}
-						Map Objects
-					{/if}
-				</h2>
-				
-				<!-- List items -->
-				<div class="space-y-2">
-					{#if currentView === 'players'}
-						<!-- Character list placeholder -->
-						{#each Array(5) as _, i}
-							<div class="p-3 border border-slate-600 rounded-lg hover:bg-slate-700 cursor-pointer transition-colors">
-								<div class="flex items-center space-x-3">
-									<div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-										<span class="text-xs font-medium text-blue-100">P{i + 1}</span>
-									</div>
-									<div class="flex-1 min-w-0">
-										<p class="text-sm font-medium text-white truncate">Player {i + 1}</p>
-										<p class="text-xs text-slate-400">Level 42</p>
-									</div>
-								</div>
-							</div>
-						{/each}
-					{:else if currentView === 'containers'}
-						<!-- Container list placeholder -->
-						{#each Array(3) as _, i}
-							<div class="p-3 border border-slate-600 rounded-lg hover:bg-slate-700 cursor-pointer transition-colors">
-								<div class="flex items-center space-x-3">
-									<div class="w-8 h-8 bg-emerald-600 rounded-full flex items-center justify-center">
-										<span class="text-xs font-medium text-emerald-100">C{i + 1}</span>
-									</div>
-									<div class="flex-1 min-w-0">
-										<p class="text-sm font-medium text-white truncate">Container {i + 1}</p>
-										<p class="text-xs text-slate-400">24 items</p>
-									</div>
-								</div>
-							</div>
-						{/each}
-					{:else}
-						<!-- Map objects placeholder -->
-						{#each Array(6) as _, i}
-							<div class="p-3 border border-slate-600 rounded-lg hover:bg-slate-700 cursor-pointer transition-colors">
-								<div class="flex items-center space-x-3">
-									<div class="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
-										<span class="text-xs font-medium text-purple-100">M{i + 1}</span>
-									</div>
-									<div class="flex-1 min-w-0">
-										<p class="text-sm font-medium text-white truncate">Base {i + 1}</p>
-										<p class="text-xs text-slate-400">Active</p>
-									</div>
-								</div>
-							</div>
-						{/each}
-					{/if}
-				</div>
-			</div>
-		</aside>
-
 		<!-- Center Content Panel -->
 		<main class="flex-1 overflow-y-auto bg-slate-900">
-			<div class="p-6">
-				<slot />
-			</div>
+			<slot />
 		</main>
 	</div>
 </div>

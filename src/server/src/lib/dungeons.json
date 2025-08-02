@@ -1,0 +1,982 @@
+[
+  {
+    "Name": "BP_DungeonPortalMarker_Desert_C_UAID_50EBF656371D49AD01_1278915862",
+    "Id": "fad9959f-4486-11ef-6879-f7a78476f677",
+    "X": 139611.05,
+    "Y": 324306.53,
+    "Z": 3399.4348
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Desert_C_UAID_50EBF656371D49AD01_1402789863",
+    "Id": "ca5dcdff-4aa3-2135-deed-85a62a2a4ea5",
+    "X": -74916.76,
+    "Y": 372458.47,
+    "Z": 3272.6772
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Desert_C_UAID_50EBF656371D49AD01_1502155864",
+    "Id": "d980e249-4505-36ed-f498-e9a90ea0587e",
+    "X": 21557.568,
+    "Y": 309214.78,
+    "Z": -916.30365
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Desert_C_UAID_50EBF656371D49AD01_1661412865",
+    "Id": "2946e9b7-4399-b8f9-d01b-bdaab79d4f85",
+    "X": 15729.527,
+    "Y": 267188.94,
+    "Z": 4439.387
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Desert_C_UAID_50EBF656371D49AD01_1836633866",
+    "Id": "ff233483-46bc-f659-b1f0-918ea9b35015",
+    "X": -6205.632,
+    "Y": 255610.88,
+    "Z": 2361.214
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Desert_C_UAID_50EBF656371DA1A601_1302869277",
+    "Id": "b167be01-4e62-2f3f-b65a-22a38f917e52",
+    "X": 14688.691,
+    "Y": 384880.8,
+    "Z": 709.48444
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Desert_C_UAID_50EBF656371DA1A601_1549304278",
+    "Id": "978717f2-41c2-798c-6091-3ca11f527ed0",
+    "X": 63496.098,
+    "Y": 333388.16,
+    "Z": 447.20813
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Desert_C_UAID_50EBF656371DDAAD01_1315099387",
+    "Id": "48470570-4c24-21ed-409f-9a9c92b3ce5c",
+    "X": -36843.145,
+    "Y": 454971.78,
+    "Z": -30.23479
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Desert_C_UAID_50EBF656371DE2AD01_1570036799",
+    "Id": "58c4584f-4f06-1f2b-8506-5093dc06bdcb",
+    "X": 101675.28,
+    "Y": 373450.72,
+    "Z": 1058.333
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Desert_C_UAID_50EBF656371DE2AD01_1702739800",
+    "Id": "1998f011-415c-6569-7030-2f9a19757495",
+    "X": -22520.576,
+    "Y": 313714.28,
+    "Z": 1326.15
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Desert_C_UAID_50EBF656371DE7AD01_1717425673",
+    "Id": "3f407f74-4b02-ffec-50e7-f3800a528bbb",
+    "X": 61320,
+    "Y": 418400,
+    "Z": -1460
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Desert_C_UAID_50EBF656371DE7AD01_1856761674",
+    "Id": "642b3900-4774-2c05-ac82-219614426a1b",
+    "X": -4513.043,
+    "Y": 424323.72,
+    "Z": 10750.938
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Desert_C_UAID_50EBF656371DE7AD01_1974417675",
+    "Id": "db23ca1a-48cf-2465-c0fd-9eadb7485725",
+    "X": -62924.047,
+    "Y": 412516.97,
+    "Z": 13502.806
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Desert_C_UAID_50EBF656371DE8AD01_1092413852",
+    "Id": "8a0abf44-43be-fd4e-8a05-50ab85a17a74",
+    "X": -26780,
+    "Y": 354640,
+    "Z": 170
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Desert_C_UAID_50EBF656371DE8AD01_1229066853",
+    "Id": "36587051-4767-6022-e9dd-d29ad92b38eb",
+    "X": 85201.234,
+    "Y": 312813.88,
+    "Z": 12564.144
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371D00A601_1478123120",
+    "Id": "f0239ac8-40b0-d5b2-5acc-25b1f0fb4fdf",
+    "X": -257638.36,
+    "Y": 141158.6,
+    "Z": 541.94257
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371D00A601_1684331121",
+    "Id": "0c75d6af-42ec-7bcd-7f30-f989dd168267",
+    "X": -265204.06,
+    "Y": 131385.12,
+    "Z": 2521.925
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371D00A601_1860907122",
+    "Id": "e59ceb24-469a-3272-3ea8-e688bd18d02b",
+    "X": -250341.31,
+    "Y": 183436.67,
+    "Z": 4307.478
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371D02A601_1165174817",
+    "Id": "2fdeff7b-4295-1597-ca6d-70970e9f33be",
+    "X": -251818.6,
+    "Y": 164041.66,
+    "Z": -1273.3356
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371D02A601_1345392818",
+    "Id": "2beedb03-46f0-5a45-e6ee-94a9569901d9",
+    "X": -211384.67,
+    "Y": 182474.86,
+    "Z": -486.09955
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371D02A601_1486494819",
+    "Id": "532f8592-4817-1f90-b355-2a9134e7716b",
+    "X": -209589.38,
+    "Y": 163211.5,
+    "Z": 939.5068
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371D02A601_1588350820",
+    "Id": "15bb601e-45f8-3300-02ca-14ad62099e2f",
+    "X": -173408.44,
+    "Y": 166837,
+    "Z": 9412.815
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371D02A601_1720523821",
+    "Id": "7a661afd-4443-8bd8-b2de-55b72e5d610c",
+    "X": -180769.03,
+    "Y": 163430.77,
+    "Z": 5051.6045
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371D02A601_1896471822",
+    "Id": "3af2de2b-48ed-73c6-98e8-75a016558051",
+    "X": -219424.83,
+    "Y": 165811.12,
+    "Z": 57.483902
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371DD4AE01_1090717378",
+    "Id": "ed825818-4fde-9427-9f7f-a4ac07e07cc2",
+    "X": -239159.88,
+    "Y": 205386.8,
+    "Z": 2115.2349
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371DD4AE01_1239872379",
+    "Id": "bc8bb901-49f2-4b50-baf9-f7ad231fab71",
+    "X": -219180,
+    "Y": 139690,
+    "Z": 5690
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371DD4AE01_1467087380",
+    "Id": "11f9bc46-4e53-b661-0b71-c5b08d33193f",
+    "X": -250000.34,
+    "Y": 120261.4,
+    "Z": 5693.605
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371DD4AE01_1783766381",
+    "Id": "c8d6ee60-42d5-68be-735f-0683e4193581",
+    "X": -196751.97,
+    "Y": 176316.2,
+    "Z": -607.1887
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371DD4AE01_1992977382",
+    "Id": "90de2704-4e96-e94c-609a-a19f19eae9ab",
+    "X": -164661.72,
+    "Y": 153125.2,
+    "Z": -1414.7832
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371DD5AD01_1868018498",
+    "Id": "bb495fd9-46ae-0137-ae25-bdbe89d6a386",
+    "X": -194214.64,
+    "Y": 239238.69,
+    "Z": -1577.1942
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371DD5AD01_1996072499",
+    "Id": "67612974-4d53-efa5-ccc8-d092ee9ad285",
+    "X": -130866.33,
+    "Y": 230761.69,
+    "Z": 1491.2563
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371DD5AE01_1272696559",
+    "Id": "54101dfe-447a-a851-74c6-87b2a7271504",
+    "X": -84794.05,
+    "Y": 286150.22,
+    "Z": 9393.375
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371DD6AD01_1093755676",
+    "Id": "efdea9b4-49bb-ceaa-2481-4c998aa390c4",
+    "X": -129471.89,
+    "Y": 253439.78,
+    "Z": -1537.6279
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371DD6AD01_1267763677",
+    "Id": "93408415-48be-845a-c96c-0fbe61e46401",
+    "X": -215213.8,
+    "Y": 265367.6,
+    "Z": -142.54051
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371DD6AD01_1393583678",
+    "Id": "2090e9f9-4996-9007-2f08-eb9dbeaea05e",
+    "X": -155066.94,
+    "Y": 296284.66,
+    "Z": -2102.6155
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371DD6AD01_1499819679",
+    "Id": "8dce893b-4872-615a-c3cc-51a3bb5e6c80",
+    "X": -101785.07,
+    "Y": 205029.23,
+    "Z": 7157.8486
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371DD6AE01_1555087736",
+    "Id": "26cde694-4dd6-8e7f-f212-6eb5d2e10ebe",
+    "X": -121016.87,
+    "Y": 212487.1,
+    "Z": 7959.5093
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371DD7AE01_1114289913",
+    "Id": "73a9d7d6-4b6f-157f-3157-ebb1f36f9283",
+    "X": -61859.875,
+    "Y": 204435.4,
+    "Z": 626.38434
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371DD7AE01_1231701914",
+    "Id": "29a81d53-4234-e3fe-d276-27be9e4fc881",
+    "X": -125215.914,
+    "Y": 174427.38,
+    "Z": -1460.9713
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371DD7AE01_1881779915",
+    "Id": "84838a36-4f35-c648-fb21-8ab89694d767",
+    "X": -163447.64,
+    "Y": 229313.19,
+    "Z": 5276.3564
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371DE0AD01_1122984437",
+    "Id": "d6d667b0-415e-195f-a5d5-1dba108ef6b2",
+    "X": -220790,
+    "Y": 234113.03,
+    "Z": -1278.6385
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371DE0AD01_1241945438",
+    "Id": "7b2bec1c-45f9-9ecc-e1a6-be8f57a56e11",
+    "X": -176948.36,
+    "Y": 200393.8,
+    "Z": -1723.1431
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371DE0AD01_1670191439",
+    "Id": "269285a7-4e26-444f-c948-17817127e813",
+    "X": -186504.7,
+    "Y": 268455.56,
+    "Z": -885.2433
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371DE0AD01_1819061440",
+    "Id": "db2abcb7-41ca-87d9-bd9b-408ec3d579e2",
+    "X": -57776.305,
+    "Y": 228600.25,
+    "Z": 2436.3738
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Forest_C_UAID_50EBF656371DE0AD01_2026029441",
+    "Id": "b0af31cc-4fbc-64c7-9d97-e5ae293a77b7",
+    "X": -217124.6,
+    "Y": 138061.36,
+    "Z": 6128.7827
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Grass1_C_UAID_50EBF656371DD1B901_2093740474",
+    "Id": "6ff6c3cb-457e-ab91-6074-f3946c93d317",
+    "X": -120225.01,
+    "Y": 25862.928,
+    "Z": -1502.5181
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Grass1_C_UAID_50EBF656371DD2B901_1749641651",
+    "Id": "f5930c1e-4100-5a5e-27f2-44a42d0ad9b2",
+    "X": -134629.19,
+    "Y": 6185.443,
+    "Z": -1599.2213
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Grass1_C_UAID_50EBF656371DD2B901_1884156652",
+    "Id": "bbb76698-44db-59c0-72e5-7fa2256bdc4b",
+    "X": -107243.01,
+    "Y": 24362.996,
+    "Z": -20.915442
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Grass1_C_UAID_50EBF656371DD4B901_1483087570",
+    "Id": "292b208c-4470-db34-0804-04b6dc17825e",
+    "X": -110032.664,
+    "Y": -71996.586,
+    "Z": -2102.6155
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Grass1_C_UAID_50EBF656371DD4B901_1563868571",
+    "Id": "cb862cd5-4584-8331-f7dc-71bac6113157",
+    "X": -124929,
+    "Y": -79963.57,
+    "Z": -2102.6155
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Grass1_C_UAID_50EBF656371DD4B901_1689040572",
+    "Id": "2dc10859-439b-4d5c-9c15-e4bcd7a5d432",
+    "X": -137086.11,
+    "Y": -50427.562,
+    "Z": -1429.2216
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Grass1_C_UAID_50EBF656371DD4B901_2118074573",
+    "Id": "cd39c156-439a-6375-1e3b-5fb8c8b67082",
+    "X": -389335.2,
+    "Y": 108597.555,
+    "Z": -1944.6674
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Grass1_C_UAID_50EBF656371DD5B901_1209184750",
+    "Id": "e76ccb31-4fa1-c1d0-87aa-918f3b433905",
+    "X": -383502.84,
+    "Y": 99617.95,
+    "Z": -453.1848
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Grass1_C_UAID_50EBF656371DD5B901_1364355751",
+    "Id": "d3c6680d-4134-4758-7e34-1cbe22ab7b53",
+    "X": -429603.38,
+    "Y": 94092.695,
+    "Z": -948.3446
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Grass1_C_UAID_50EBF656371DD5B901_1471510752",
+    "Id": "98302702-4a1b-b568-ccb8-8da59b2d06ba",
+    "X": -431538.06,
+    "Y": 82092.4,
+    "Z": 57.4146
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Grass1_C_UAID_50EBF656371DD5B901_1699654753",
+    "Id": "64d0b12b-4db5-e728-f35d-a49cfd893906",
+    "X": -404448.4,
+    "Y": 64664.34,
+    "Z": -1598.903
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Grass1_C_UAID_50EBF656371DD5B901_1900900754",
+    "Id": "e34e2392-4dd1-7fee-bc6e-f4803d1139c1",
+    "X": -376218.16,
+    "Y": 48671.656,
+    "Z": -1670.3453
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Grass1_C_UAID_50EBF656371DD5B901_2117036755",
+    "Id": "a4de2362-4eab-5cd0-eb4b-a4b52e648430",
+    "X": -245011.25,
+    "Y": 335769,
+    "Z": -1610.3833
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Grass1_C_UAID_50EBF656371DD6B901_1225481932",
+    "Id": "75f04e6d-4138-4185-529c-75aa085eef7a",
+    "X": -267882.53,
+    "Y": 327448.2,
+    "Z": -1887.1897
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Grass1_C_UAID_50EBF656371DD6B901_1435418933",
+    "Id": "e1ebff61-4a93-8b44-799b-468f420b2548",
+    "X": -259060.98,
+    "Y": 280351.5,
+    "Z": -1880.8912
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Grass1_C_UAID_50EBF656371DD6B901_1817220934",
+    "Id": "5ea7f36e-40f9-c8a8-6975-e8ac993eb1b4",
+    "X": -189599.53,
+    "Y": 372690.3,
+    "Z": 1620
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Grass1_C_UAID_50EBF656371DD6B901_2016238935",
+    "Id": "541016c8-4af2-2b6e-8fe5-9688683ceeef",
+    "X": -213940,
+    "Y": 398860,
+    "Z": -1930
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Grass1_C_UAID_50EBF656371DD6B901_2117253936",
+    "Id": "c1c0f1a3-4c1d-faac-b69d-67b354a6a7b1",
+    "X": -181432.97,
+    "Y": 350147.84,
+    "Z": 3353.444
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Grass1_C_UAID_50EBF656371DDFAD01_1451221260",
+    "Id": "e2666a75-4684-f43f-4b8e-53a7449b8fae",
+    "X": -288304.3,
+    "Y": 227049.95,
+    "Z": 769.3366
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Grass1_C_UAID_50EBF656371DE3AD01_2041990962",
+    "Id": "8ac175f7-40d9-5350-ed75-d99a5028d452",
+    "X": -281167.4,
+    "Y": 88738.35,
+    "Z": 3834.782
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Grass1_C_UAID_50EBF656371DE4AD01_1127832139",
+    "Id": "cc9b08ea-4f1f-16f6-2e2f-b2aad137eb72",
+    "X": -256755.73,
+    "Y": 26900.877,
+    "Z": 9510.3125
+  },
+  {
+    "Name": "BP_DungeonPortalMarkerV2_C_UAID_50EBF656371D03A601_1717886992",
+    "Id": "bccd7dbe-47e9-068c-5c0c-cd9d3c5fd46f",
+    "X": -372024.53,
+    "Y": 278564.66,
+    "Z": -1994.3835
+  },
+  {
+    "Name": "BP_DungeonPortalMarkerV2_C_UAID_50EBF656371DDEAD01_1817508082",
+    "Id": "0cdc8505-4296-aa45-e009-4fbe34d42d23",
+    "X": -346468.22,
+    "Y": 214850.02,
+    "Z": -2023.9846
+  },
+  {
+    "Name": "BP_DungeonPortalMarkerV2_C_UAID_50EBF656371DDEAD01_2070109083",
+    "Id": "e11aba86-4bbc-a4ec-85b4-349356d4925e",
+    "X": -301121.12,
+    "Y": 179718.17,
+    "Z": 319.98132
+  },
+  {
+    "Name": "BP_DungeonPortalMarkerV2_C_UAID_50EBF656371DF7A501_2068816876",
+    "Id": "d55bac81-4d05-c7ce-e30a-ebab556ceb32",
+    "X": -320588.1,
+    "Y": 113800.28,
+    "Z": -1457.755
+  },
+  {
+    "Name": "BP_DungeonPortalMarkerV2_C_UAID_50EBF656371DF8A501_1193713053",
+    "Id": "e7da88e9-45e7-a7c0-760f-c09dbbce52e6",
+    "X": -315807.78,
+    "Y": 107247.59,
+    "Z": -354.74667
+  },
+  {
+    "Name": "BP_DungeonPortalMarkerV2_C_UAID_50EBF656371DF8A501_1474762054",
+    "Id": "77f9f5a8-4404-e726-d7f2-d989c5370cdc",
+    "X": -325692.12,
+    "Y": 83869.57,
+    "Z": 2548.6453
+  },
+  {
+    "Name": "BP_DungeonPortalMarkerV2_C_UAID_50EBF656371DF8A501_1719594055",
+    "Id": "49e11965-4a89-f861-b09b-4ca196333225",
+    "X": -340404.62,
+    "Y": 58438.676,
+    "Z": 4618.394
+  },
+  {
+    "Name": "BP_DungeonPortalMarkerV2_C_UAID_50EBF656371DF8A501_1919309056",
+    "Id": "a695ad35-4bb3-edff-59a7-a1963e64e23a",
+    "X": -337808.62,
+    "Y": 30763.018,
+    "Z": 4100.7124
+  },
+  {
+    "Name": "BP_DungeonPortalMarkerV2_C_UAID_50EBF656371DFAA501_1500890368",
+    "Id": "54b08868-48de-8188-3a5e-c7be44bf7ac5",
+    "X": -315044.72,
+    "Y": 54365.902,
+    "Z": 7854.551
+  },
+  {
+    "Name": "BP_DungeonPortalMarkerV2_C_UAID_50EBF656371DFAA501_1752698369",
+    "Id": "cd443ea4-4307-3615-93b4-ceaac4809bd3",
+    "X": -302529.38,
+    "Y": 52391.465,
+    "Z": 12481.655
+  },
+  {
+    "Name": "BP_DungeonPortalMarkerV2_C_UAID_50EBF656371DFAA501_2106542370",
+    "Id": "3d9fa6e4-4a04-ecad-dea3-f092ef95b6dc",
+    "X": -203748.6,
+    "Y": 90007.32,
+    "Z": 17.301937
+  },
+  {
+    "Name": "BP_DungeonPortalMarkerV2_C_UAID_50EBF656371DFBA501_1219839547",
+    "Id": "d394c26b-4993-988c-a831-73b5fecf4201",
+    "X": -202257.86,
+    "Y": 31403.273,
+    "Z": 7325.408
+  },
+  {
+    "Name": "BP_DungeonPortalMarkerV2_C_UAID_50EBF656371DFBA501_1789037789",
+    "Id": "c54e3eb9-496c-e6c6-a244-0187d8b43c9b",
+    "X": -225251.94,
+    "Y": -13333.923,
+    "Z": -912.7775
+  },
+  {
+    "Name": "BP_DungeonPortalMarkerV2_C_UAID_50EBF656371DFBA501_1961527790",
+    "Id": "4d74248a-46df-afa5-6257-d5981682ecfa",
+    "X": -221494.6,
+    "Y": 27971.861,
+    "Z": 14071.279
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Sakura_C_UAID_50EBF656371DCBF501_1151931861",
+    "Id": "59a19af4-41b0-a075-bab8-19b54049f5c9",
+    "X": -61090.59,
+    "Y": -5748.064,
+    "Z": -2102.6155
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Sakura_C_UAID_50EBF656371DCCF501_1085757039",
+    "Id": "e0801d7e-4eb1-1b53-069b-79ac78cd1305",
+    "X": -39021.598,
+    "Y": -39231.305,
+    "Z": -1814.6726
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Sakura_C_UAID_50EBF656371DCCF501_1189488040",
+    "Id": "9e50a6da-4332-e0a8-ca41-0393c1567eb8",
+    "X": -74146.06,
+    "Y": -63473.688,
+    "Z": -2090
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Sakura_C_UAID_50EBF656371DCCF501_1416914042",
+    "Id": "96e9e42d-4d95-8092-0208-6caddc0a001e",
+    "X": -2514.634,
+    "Y": -106358.336,
+    "Z": 1496.4027
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Sakura_C_UAID_50EBF656371DCCF501_1588520043",
+    "Id": "bae67869-43a7-5bfb-7983-62a6792d28eb",
+    "X": 10312.326,
+    "Y": -115227.17,
+    "Z": 1137.0659
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Sakura_C_UAID_50EBF656371DCCF501_1759248044",
+    "Id": "05338927-47fc-a0e1-82ea-558afda37f2c",
+    "X": 890.78125,
+    "Y": -128930.5,
+    "Z": 1079.7714
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Sakura_C_UAID_50EBF656371DCCF501_1844738045",
+    "Id": "24f42b66-4697-a2ee-6810-759e9f7c66f1",
+    "X": -37363.293,
+    "Y": -152096.67,
+    "Z": 878.66833
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Sakura_C_UAID_50EBF656371DCCF501_2041414046",
+    "Id": "c363463f-4ffe-9a8d-3736-89afa4f4a654",
+    "X": 9258.159,
+    "Y": -142072.25,
+    "Z": 1314.5238
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Sakura_C_UAID_50EBF656371DCDF501_1117992223",
+    "Id": "94906016-412f-1df3-7a98-6591d8c06b47",
+    "X": -17730.912,
+    "Y": -73667.055,
+    "Z": 854.7803
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Sakura_C_UAID_50EBF656371DCDF501_1190517224",
+    "Id": "7579648b-4fb5-122c-fae3-0284caa82b09",
+    "X": -42658.46,
+    "Y": -122726.34,
+    "Z": 1367.7037
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Sakura_C_UAID_50EBF656371DCDF501_1304532225",
+    "Id": "c032c4fa-480b-bcb8-417a-e08fdd3d6a47",
+    "X": -32453.781,
+    "Y": -106978.17,
+    "Z": 2376.0095
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Sakura_C_UAID_50EBF656371DCDF501_1401872226",
+    "Id": "861a2683-4377-971d-cff9-518209c1e0b3",
+    "X": -13807.568,
+    "Y": -152802.98,
+    "Z": 2880
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Sakura_C_UAID_50EBF656371DCDF501_1532897227",
+    "Id": "1639bb65-4514-784a-ea5b-9da3d8746b8a",
+    "X": -15641.818,
+    "Y": -137406.38,
+    "Z": 4600
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Sakura_C_UAID_50EBF656371DCEF501_1362672404",
+    "Id": "6abffb72-4c64-1a3f-4b7d-42a70a300d9f",
+    "X": -24131.918,
+    "Y": -110237.734,
+    "Z": 4410
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Sakura_C_UAID_5811222FB8EA90F801_1411760139",
+    "Id": "e2dc10b1-4fe8-79f5-e576-b3a45633f176",
+    "X": -57139.156,
+    "Y": -86089.53,
+    "Z": -2013.2833
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Snow_C_UAID_50EBF656371D47AD01_1703000506",
+    "Id": "30701468-4ef6-611d-2786-55a9347fca5d",
+    "X": 135090.5,
+    "Y": 64370.324,
+    "Z": 28543.797
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Snow_C_UAID_50EBF656371D47AD01_1884430507",
+    "Id": "118c58b3-44ce-d408-8b9c-5d9c199add29",
+    "X": 136262.53,
+    "Y": 88305.4,
+    "Z": 38681.85
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Snow_C_UAID_50EBF656371D48AD01_1114497684",
+    "Id": "435ba422-4c28-dbbf-310a-5680c134a56f",
+    "X": 2547.9534,
+    "Y": 172474.5,
+    "Z": 7516.839
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Snow_C_UAID_50EBF656371D48AD01_1673259685",
+    "Id": "7201e700-488a-dffe-20d8-45aa5318fbed",
+    "X": -58507.242,
+    "Y": 157466.9,
+    "Z": 12276.954
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Snow_C_UAID_50EBF656371DA2A601_1856052932",
+    "Id": "8dab603b-4aa6-4681-af64-0fb8b1860b82",
+    "X": 20555.752,
+    "Y": 102617.6,
+    "Z": 2350.2148
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Snow_C_UAID_50EBF656371DA2A601_1987845933",
+    "Id": "36bdc277-4b02-f81d-62c6-b2b4e84b3265",
+    "X": -3297.4807,
+    "Y": 53484.938,
+    "Z": 19498.615
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Snow_C_UAID_50EBF656371DA3A601_1335588110",
+    "Id": "a49f40b1-4775-e800-6a74-6c9f47f3c1ad",
+    "X": 101576.625,
+    "Y": 18990.648,
+    "Z": 19538.1
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Snow_C_UAID_50EBF656371DD9AD01_2079582210",
+    "Id": "09795aa7-4fdd-ae29-361e-258a61f13041",
+    "X": -36660.12,
+    "Y": 148978.95,
+    "Z": 16283.472
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Snow_C_UAID_50EBF656371DE1AD01_2131160621",
+    "Id": "49da0673-4eaa-8780-7686-589e83687703",
+    "X": 41444.24,
+    "Y": 27335.725,
+    "Z": 11078.67
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Snow_C_UAID_50EBF656371DE2AD01_1209548798",
+    "Id": "d6162726-4473-c8a8-687a-46afd4f56846",
+    "X": 47436.184,
+    "Y": -9661.415,
+    "Z": 9924.344
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Snow_C_UAID_50EBF656371DE5AD01_1943827316",
+    "Id": "fefa1c18-4cce-8326-1848-d28149f474a9",
+    "X": -25056.857,
+    "Y": 113597.305,
+    "Z": 8292.373
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Snow_C_UAID_50EBF656371DE6AD01_1356276493",
+    "Id": "ac2c19d0-4200-9c32-1e45-99bcb11225f1",
+    "X": 26498.53,
+    "Y": 75921.09,
+    "Z": 24300.943
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Snow_C_UAID_50EBF656371DE6AD01_1731170494",
+    "Id": "7da91a86-4b5b-1ad1-4837-3f9c9441860e",
+    "X": 42530.336,
+    "Y": 203883.6,
+    "Z": 8423.112
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Snow_C_UAID_50EBF656371DE6AD01_2091792495",
+    "Id": "fed843aa-4128-e193-7d10-a393f5a0f00d",
+    "X": 80038.95,
+    "Y": 6386.8164,
+    "Z": 30360.688
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Snow_C_UAID_50EBF656371DE7AD01_1222507672",
+    "Id": "68064bb2-48fe-e9af-044a-778589672a10",
+    "X": 143019.12,
+    "Y": 9658.513,
+    "Z": 18597.22
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Viking_C_UAID_50EBF656371DEA2A02_1182652925",
+    "Id": "71b04c6e-4ede-c41c-ce0d-50abb1946a4d",
+    "X": -733449,
+    "Y": -320729.53,
+    "Z": 31032.068
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Viking_C_UAID_50EBF656371DEA2A02_1396509926",
+    "Id": "6d135020-4ca0-eb68-cc4f-0baa60f53335",
+    "X": -843324.4,
+    "Y": -404753.84,
+    "Z": -2102.6157
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Viking_C_UAID_50EBF656371DEA2A02_1627465927",
+    "Id": "fab9065f-4c85-fce7-b903-b29cb5b49abe",
+    "X": -796816.5,
+    "Y": -365816.16,
+    "Z": 5647.433
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Viking_C_UAID_50EBF656371DB72A02_2096269949",
+    "Id": "6dc3a97a-4c6d-d339-d49f-ca8cce1e1815",
+    "X": -798439.8,
+    "Y": -331101.8,
+    "Z": 9432.305
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Viking_C_UAID_50EBF656371DB82A02_1181310126",
+    "Id": "990c43bd-40d2-2f01-0a8a-aaae08cf11c7",
+    "X": -800228.8,
+    "Y": -286975.7,
+    "Z": 1958.2709
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Viking_C_UAID_50EBF656371DEA2A02_1917873928",
+    "Id": "e77c6d1d-439b-c16a-b46c-15966649d675",
+    "X": -563204.8,
+    "Y": -229685.1,
+    "Z": -316.51154
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Viking_C_UAID_50EBF656371DEA2A02_2074127929",
+    "Id": "e4915a61-48f2-c6ad-d801-a3b1c4a8de6c",
+    "X": -502169.7,
+    "Y": -346285.5,
+    "Z": -1500.3907
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Viking_C_UAID_50EBF656371DEB2A02_1198914106",
+    "Id": "20f0b8b5-4608-d956-f8a0-d1aa6a374aab",
+    "X": -652504.44,
+    "Y": -439189.22,
+    "Z": 11888.71
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Viking_C_UAID_50EBF656371DEB2A02_1456576107",
+    "Id": "300dfc04-4cdd-5426-8393-8980559b597f",
+    "X": -671787,
+    "Y": -192539.98,
+    "Z": 3095.2158
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Viking_C_UAID_50EBF656371DEB2A02_1617002108",
+    "Id": "99af7ed0-46fc-6422-1ada-67902f9a96fc",
+    "X": -624781.9,
+    "Y": -247472.5,
+    "Z": 13299.918
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Viking_C_UAID_50EBF656371DEB2A02_1933599109",
+    "Id": "6f10a5bf-4c35-99c4-0963-9aa9a5214635",
+    "X": -669586.3,
+    "Y": -394684.16,
+    "Z": 25288.348
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Viking_C_UAID_50EBF656371DEC2A02_1141309286",
+    "Id": "c49880da-416b-7cda-cd88-ac939e962ed0",
+    "X": -640033.75,
+    "Y": -344681.72,
+    "Z": 11471.451
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Viking_C_UAID_50EBF656371DEC2A02_1284336287",
+    "Id": "0682d0d7-48af-beba-c824-368c1c5e2930",
+    "X": -585393.8,
+    "Y": -338144.72,
+    "Z": 23197.459
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Viking_C_UAID_50EBF656371DEC2A02_1489745288",
+    "Id": "9293446a-4136-3d2c-3130-ce927795f9b9",
+    "X": -739658.9,
+    "Y": -310238.78,
+    "Z": 35274.93
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Viking_C_UAID_50EBF656371DEC2A02_1751723289",
+    "Id": "77b4e541-4d75-9142-caa0-acbecad76efd",
+    "X": -597250.44,
+    "Y": -301345.4,
+    "Z": 14453.99
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Volcano_C_UAID_50EBF656371D4AAD01_1362286044",
+    "Id": "7086d23b-44d2-4ee6-1c6e-57b7d6745d77",
+    "X": -335586.6,
+    "Y": -104884.1,
+    "Z": 40441.938
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Volcano_C_UAID_50EBF656371D4AAD01_1673429045",
+    "Id": "1347209b-47b7-aa24-a1b5-0b962571e4bb",
+    "X": -287925.97,
+    "Y": -191141.92,
+    "Z": 6661.2534
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Volcano_C_UAID_50EBF656371D4AAD01_1869104046",
+    "Id": "b303aa16-40de-a128-b9c2-2f843c0df0b8",
+    "X": -333902.78,
+    "Y": -205767.4,
+    "Z": 6942.853
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Volcano_C_UAID_50EBF656371D56A601_2093296847",
+    "Id": "a8bdd8bc-4946-238b-d899-2b963d2aee16",
+    "X": -320921.66,
+    "Y": -100230.68,
+    "Z": 18782.256
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Volcano_C_UAID_50EBF656371D57A601_1124597024",
+    "Id": "ae4d23c3-44af-419c-1dd6-adb6c516223c",
+    "X": -268094.03,
+    "Y": -53009.18,
+    "Z": 3558.5527
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Volcano_C_UAID_50EBF656371D57A601_1290875025",
+    "Id": "d68b296a-40d4-0aef-d62b-689a37089706",
+    "X": -368225.28,
+    "Y": -74478.06,
+    "Z": 18314.773
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Volcano_C_UAID_50EBF656371DA0A601_1246240624",
+    "Id": "e5a6640d-4259-9674-8f37-6b847c7b24ca",
+    "X": -238650.75,
+    "Y": -121688.11,
+    "Z": -247.39284
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Volcano_C_UAID_50EBF656371DE1AD01_1221292618",
+    "Id": "37fe8233-4549-e800-da98-2e8c61db5b33",
+    "X": -315091.6,
+    "Y": -52063.6,
+    "Z": 14675.742
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Volcano_C_UAID_50EBF656371DE1AD01_1577801619",
+    "Id": "95823ec3-4305-2e41-9c7f-60afd506329a",
+    "X": -374132.75,
+    "Y": -89184.65,
+    "Z": 30822.107
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Volcano_C_UAID_50EBF656371DE1AD01_1835309620",
+    "Id": "fbccaaae-4ab2-2202-8715-899c56fcd707",
+    "X": -392681.62,
+    "Y": -208957.25,
+    "Z": -32.702103
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Volcano_C_UAID_50EBF656371DE8AD01_1490350854",
+    "Id": "6c82f0c5-476b-cfa3-a2a5-fd87911cebfa",
+    "X": -405155.94,
+    "Y": -176237.36,
+    "Z": 15502.303
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Volcano_C_UAID_50EBF656371DE8AD01_1877782855",
+    "Id": "6799f7b5-4ce4-0b38-0886-c18c078707b5",
+    "X": -386508.1,
+    "Y": -12226.478,
+    "Z": 4659.4893
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Volcano_C_UAID_50EBF656371DE8AD01_2043511856",
+    "Id": "6620fd98-497a-1734-2476-bbbeb4410c13",
+    "X": -400575.6,
+    "Y": -35335.31,
+    "Z": 7001.188
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Volcano_C_UAID_50EBF656371DE9AD01_1322383033",
+    "Id": "3dbfb804-4841-3a72-a007-67934c750056",
+    "X": -289138.2,
+    "Y": -209876.05,
+    "Z": 3435.3037
+  },
+  {
+    "Name": "BP_DungeonPortalMarker_Volcano_C_UAID_50EBF656371DE9AD01_1670693034",
+    "Id": "e8c1ee35-4555-5106-d277-27a470605d11",
+    "X": -265755.38,
+    "Y": -164168.52,
+    "Z": 9003.475
+  }
+]

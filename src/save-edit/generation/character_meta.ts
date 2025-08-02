@@ -90,6 +90,62 @@ export const EntitySchemas: Record<string, EntityMeta> = {
             "BaseCamps": {
                 path: ["properties", "worldSaveData", "value", "BaseCampSaveData", "value"],
                 type: "BaseCamp[]"
+            },
+            "DungeonSaveData":{
+                path: ["properties", "worldSaveData", "value", "DungeonSaveData", "value", "values"],
+                type: "DungeonSaveData[]"
+            },
+            "DungeonPointMarkerSaveData":{
+                path: ["properties", "worldSaveData", "value", "DungeonPointMarkerSaveData", "value", "values"],
+                type:"DungeonPointMarkerSaveData[]"
+            }
+        }
+    },
+    "DungeonPointMarkerSaveData":{
+        properties:{
+            "MarkerPointId":{
+                path:["MarkerPointId","value"],
+                type: "string"
+            },
+            "NextRespawnGameTime":{
+                path:["NextRespawnGameTime","value","Ticks","value"],
+                type:"number"
+            }
+        }
+    },
+    "DungeonSaveData":{
+        properties:{
+            "InstanceId":{
+                path: ["InstanceId","value"],
+                type: "string"
+            },
+            "MarkerPointId":{
+                path:["MarkerPointId","value"],
+                type: "string"
+            },
+            "DungeonSpawnAreaId":{
+                path: ["DungeonSpawnAreaId", "value"],
+                type: "string"
+            },
+            "DungeonLevelName":{
+                path: ["DungeonLevelName", "value"],
+                type: "string"
+            },
+            "BossState":{
+                path:["BossState", "value","value"],
+                type: "string"
+            },
+            "EnemySpawnerDataBossRowName":{
+                path:["EnemySpawnerDataBossRowName","value"],
+                type:"string"
+            },
+            "DisappearTimeAt":{
+                path:["DisappearTimeAt","value","Ticks","value"],
+                type:"number"
+            },
+            "RespawnBossTimeAt":{
+                path:["RespawnBossTimeAt","value","ticks","value"],
+                type:"number"
             }
         }
     },
@@ -110,6 +166,26 @@ export const EntitySchemas: Record<string, EntityMeta> = {
             "OwnerInstanceId": {
                 path: ["value", "RawData", "value", "owner_map_object_instance_id"],
                 type: "string"
+            },
+            "Coords":{
+                path:["value", "WorkerDirector", "value", "RawData", "value","spawn_transform"],
+                type:"Coords"
+            }
+        }
+    },
+    "Coords":{
+        properties:{
+            "x":{
+                path:["translation","x"],
+                type:"number"
+            },
+            "y":{
+                path:["translation","y"],
+                type:"number"
+            },
+            "z":{
+                path:["translation","z"],
+                type:"number"
             }
         }
     },

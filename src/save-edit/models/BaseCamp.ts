@@ -1,4 +1,5 @@
 import { JsonWrapper } from './JsonWrapper';
+import { Coords } from './Coords';
 export class BaseCamp extends JsonWrapper {
   constructor(node: any) {
     super(node);
@@ -34,5 +35,9 @@ export class BaseCamp extends JsonWrapper {
 
   set OwnerInstanceId(value: string) {
     this.setPath(["value","RawData","value","owner_map_object_instance_id"], value);
+  }
+
+  get Coords(): Coords {
+    return new Coords(this.getPath(["value","WorkerDirector","value","RawData","value","spawn_transform"]));
   }
 }

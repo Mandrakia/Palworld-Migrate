@@ -6,6 +6,8 @@ import { CharacterContainer } from './CharacterContainer';
 import { Group } from './Group';
 import { GroupFactory } from './GroupFactory';
 import { BaseCamp } from './BaseCamp';
+import { DungeonSaveData } from './DungeonSaveData';
+import { DungeonPointMarkerSaveData } from './DungeonPointMarkerSaveData';
 export class ServerSave extends JsonWrapper {
   constructor(node: any) {
     super(node);
@@ -37,5 +39,13 @@ export class ServerSave extends JsonWrapper {
 
   get BaseCamps(): BaseCamp[] {
     return this.getPath(["properties","worldSaveData","value","BaseCampSaveData","value"])?.map((x: any) => new BaseCamp(x)) ?? [];
+  }
+
+  get DungeonSaveData(): DungeonSaveData[] {
+    return this.getPath(["properties","worldSaveData","value","DungeonSaveData","value","values"])?.map((x: any) => new DungeonSaveData(x)) ?? [];
+  }
+
+  get DungeonPointMarkerSaveData(): DungeonPointMarkerSaveData[] {
+    return this.getPath(["properties","worldSaveData","value","DungeonPointMarkerSaveData","value","values"])?.map((x: any) => new DungeonPointMarkerSaveData(x)) ?? [];
   }
 }
