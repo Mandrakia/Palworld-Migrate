@@ -44,31 +44,36 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
             let respawnAt: number | null = null;
             
             if (state?.DisappearTimeAt) {
-                // DisappearTimeAt is in game time ticks, convert to real time
+                // Try different approaches to see what works
+                
+                // Approach 1: DisappearTimeAt is already Unix time in ticks
+                const approach1 = Math.floor(state.DisappearTimeAt / 10000 / 1000);
+                
+                // Approach 2: DisappearTimeAt is .NET DateTime ticks
+                const approach2 = Math.floor((state.DisappearTimeAt - 621355968000000000) / 10000 / 1000);
+                
+                // Approach 3: Game time difference method
                 const gameTimeDiff = state.DisappearTimeAt - serverGameTime;
-                
-                // Convert current server real time ticks to Unix timestamp
                 const currentUnixTime = Math.floor(serverRealTime / 10000 / 1000);
+                const approach3 = currentUnixTime + Math.floor(gameTimeDiff / 10000 / 1000);
                 
-                // Convert game time difference to real time seconds
-                // Game time seems to run at same rate as real time (1:1 ratio)
-                const gameTimeDiffSeconds = Math.floor(gameTimeDiff / 10000 / 1000);
+                // Current timestamp for comparison
+                const nowUnix = Math.floor(Date.now() / 1000);
                 
-                disappearAt = currentUnixTime + gameTimeDiffSeconds;
-                
-                // Debug for first dungeon with DisappearTimeAt
-                console.log('Dungeon Debug:', {
+                console.log('Testing approaches:', {
                     dungeonId: dungeon.Id,
                     disappearTimeAt: state.DisappearTimeAt,
                     serverGameTime,
                     serverRealTime,
-                    gameTimeDiff,
-                    gameTimeDiffSeconds,
-                    currentUnixTime,
-                    disappearAt,
-                    minutesFromNow: gameTimeDiffSeconds / 60,
-                    shouldBe137mins: 'Check if minutesFromNow ≈ 137'
+                    currentUnix: nowUnix,
+                    approach1: { value: approach1, minutesFromNow: (approach1 - nowUnix) / 60 },
+                    approach2: { value: approach2, minutesFromNow: (approach2 - nowUnix) / 60 },
+                    approach3: { value: approach3, minutesFromNow: (approach3 - nowUnix) / 60 },
+                    shouldBe137mins: 'Which approach gives ~137 minutes?'
                 });
+                
+                // For now, use approach 1
+                disappearAt = approach1;
             }
             
             if (state?.RespawnBossTimeAt) {
