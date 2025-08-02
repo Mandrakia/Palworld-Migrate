@@ -37,12 +37,14 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
             
             if (state?.DisappearTimeAt) {
                 const gameTimeDiff = state.DisappearTimeAt - serverGameTime;
-                disappearAt = Math.floor((serverRealTime + gameTimeDiff - 621355968000000000) / 10000 / 1000);
+                const realTimeTicks = serverRealTime + gameTimeDiff;
+                disappearAt = Math.floor((realTimeTicks - 621355968000000000) / 10000 / 1000);
             }
             
             if (state?.RespawnBossTimeAt) {
                 const gameTimeDiff = state.RespawnBossTimeAt - serverGameTime;
-                respawnAt = Math.floor((serverRealTime + gameTimeDiff - 621355968000000000) / 10000 / 1000);
+                const realTimeTicks = serverRealTime + gameTimeDiff;
+                respawnAt = Math.floor((realTimeTicks - 621355968000000000) / 10000 / 1000);
             }
             
             return {
