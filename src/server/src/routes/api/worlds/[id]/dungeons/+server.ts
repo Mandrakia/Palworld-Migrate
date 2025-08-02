@@ -47,7 +47,9 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
                 // DisappearTimeAt is in game time ticks, convert to real time
                 const gameTimeDiff = state.DisappearTimeAt - serverGameTime;
                 const realTimeTicks = serverRealTime + gameTimeDiff;
-                disappearAt = Math.floor((realTimeTicks - 621355968000000000) / 10000 / 1000);
+                
+                // serverRealTime appears to be Unix time in ticks, not .NET DateTime
+                disappearAt = Math.floor(realTimeTicks / 10000 / 1000);
                 
                 // Debug for first dungeon with DisappearTimeAt
                 console.log('Dungeon Debug:', {
@@ -58,7 +60,9 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
                     gameTimeDiff,
                     realTimeTicks,
                     disappearAt,
-                    calculation: `(${realTimeTicks} - 621355968000000000) / 10000 / 1000`
+                    serverRealTimeAsUnix: Math.floor(serverRealTime / 10000 / 1000),
+                    currentUnix: Math.floor(Date.now() / 1000),
+                    calculation: `${realTimeTicks} / 10000 / 1000`
                 });
             }
             
@@ -66,7 +70,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
                 // RespawnBossTimeAt is in game time ticks, convert to real time
                 const gameTimeDiff = state.RespawnBossTimeAt - serverGameTime;
                 const realTimeTicks = serverRealTime + gameTimeDiff;
-                respawnAt = Math.floor((realTimeTicks - 621355968000000000) / 10000 / 1000);
+                respawnAt = Math.floor(realTimeTicks / 10000 / 1000);
             }
             
             return {
