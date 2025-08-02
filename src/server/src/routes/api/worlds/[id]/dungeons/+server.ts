@@ -68,7 +68,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
                 const spanLeft = diff * ratio;
                 
                 // Convert to Unix timestamp
-                respawnAt = Math.floor((serverRealTime + spanLeft) / 10000 / 1000);
+                respawnAt = spanLeft
             }
             
             return {
@@ -79,6 +79,8 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
                 DisappearAt: disappearAt,
                 RespawnAt: respawnAt,
                 TimeDiff: state?.DisappearTimeAt - serverSave.GameTime,
+                GameTime: gameToRealOffset,
+                RealTime: serverRealTime
             }
 
         }));
