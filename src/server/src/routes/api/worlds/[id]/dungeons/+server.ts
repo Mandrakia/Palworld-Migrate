@@ -23,9 +23,36 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 
         const dungeons : Dungeon[] = rawDungeons;
         const serverSave = saveWatcher.getServerSave(id);
+        
+        // Get server time data for timestamp conversion
+        const serverGameTime = serverSave.GameTime;
+        const serverRealTime = serverSave.RealTime;
+        
         return json(dungeons.map(dungeon=>{
             const state : DungeonSaveData = serverSave.DungeonSaveData.find(a=> a.MarkerPointId === dungeon.Id)
-            return {...dungeon, IsActive: state && state.BossState === "EPalDungeonInstanceBossState::Spawned", DisappearAtTicks: state?.DisappearTimeAt, RespawnAtTicks: state?.RespawnBossTimeAt}
+            
+            // Convert game time ticks to real Unix timestamps
+            let disappearAt: number | null = null;
+            let respawnAt: number | null = null;
+            
+            if (state?.DisappearTimeAt) {
+                const gameTimeDiff = state.DisappearTimeAt - serverGameTime;
+                disappearAt = Math.floor((serverRealTime + gameTimeDiff - 621355968000000000) / 10000 / 1000);
+            }
+            
+            if (state?.RespawnBossTimeAt) {
+                const gameTimeDiff = state.RespawnBossTimeAt - serverGameTime;
+                respawnAt = Math.floor((serverRealTime + gameTimeDiff - 621355968000000000) / 10000 / 1000);
+            }
+            
+            return {
+                ...dungeon, 
+                IsActive: state && state.BossState === "EPalDungeonInstanceBossState::Spawned", 
+                DisappearAtTicks: state?.DisappearTimeAt, 
+                RespawnAtTicks: state?.RespawnBossTimeAt,
+                DisappearAt: disappearAt,
+                RespawnAt: respawnAt
+            }
 
         }));
     }

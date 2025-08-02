@@ -13,6 +13,22 @@ export class ServerSave extends JsonWrapper {
     super(node);
   }
 
+  get GameTime(): number {
+    return this.getPath(["properties","worldSaveData","value","GameTimeSaveData","value","GameDateTimeTicks","value"]);
+  }
+
+  set GameTime(value: number) {
+    this.setPath(["properties","worldSaveData","value","GameTimeSaveData","value","GameDateTimeTicks","value"], value);
+  }
+
+  get RealTime(): number {
+    return this.getPath(["properties","worldSaveData","value","GameTimeSaveData","value","RealDateTimeTicks","value"]);
+  }
+
+  set RealTime(value: number) {
+    this.setPath(["properties","worldSaveData","value","GameTimeSaveData","value","RealDateTimeTicks","value"], value);
+  }
+
   get Characters(): Character[] {
     return this.getPath(["properties","worldSaveData","value","CharacterSaveParameterMap","value"])?.map((x: any) => CharacterFactory.fromNode(x)) ?? [];
   }

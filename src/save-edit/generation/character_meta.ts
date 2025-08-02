@@ -67,6 +67,14 @@ export const EntitySchemas: Record<string, EntityMeta> = {
     },
     "ServerSave": {
         properties: {
+            "GameTime":{
+                path: ["properties", "worldSaveData", "value", "GameTimeSaveData", "value","GameDateTimeTicks","value"],
+                type : "number"
+            },
+            "RealTime":{
+                path: ["properties", "worldSaveData", "value", "GameTimeSaveData", "value","RealDateTimeTicks","value"],
+                type : "number"
+            },
             "Characters": {
                 path: ["properties", "worldSaveData", "value", "CharacterSaveParameterMap", "value"],
                 type: "Character[]"

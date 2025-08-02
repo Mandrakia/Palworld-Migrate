@@ -168,26 +168,29 @@
 		}
 	});
 
-	function formatTimeUntilDisappear(disappearAtTicks: number | undefined): string {
-		if (!disappearAtTicks) return '';
+	function formatTimeUntilDisappear(disappearAt: number | undefined): string {
+		if (!disappearAt) return '';
 		
-		const currentTicks = Date.now() * 10000 + 621355968000000000; // Convert to .NET ticks
-		const timeDiff = disappearAtTicks - currentTicks;
+		const currentTime = Math.floor(Date.now() / 1000); // Current Unix timestamp
+		const timeDiff = disappearAt - currentTime;
 		
 		if (timeDiff <= 0) return 'Expired';
 		
-		const seconds = Math.floor(timeDiff / 10000000);
-		const minutes = Math.floor(seconds / 60);
+		const minutes = Math.floor(timeDiff / 60);
 		const hours = Math.floor(minutes / 60);
+		const days = Math.floor(hours / 24);
 		
-		if (hours > 0) {
+		if (days > 0) {
+			const remainingHours = hours % 24;
+			return `In ${days}d ${remainingHours}h`;
+		} else if (hours > 0) {
 			const remainingMinutes = minutes % 60;
 			return `In ${hours}h ${remainingMinutes}m`;
 		} else if (minutes > 0) {
-			const remainingSeconds = seconds % 60;
+			const remainingSeconds = timeDiff % 60;
 			return `In ${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 		} else {
-			return `In ${seconds}s`;
+			return `In ${timeDiff}s`;
 		}
 	}
 
@@ -383,13 +386,13 @@
 					</span>
 				</div>
 				
-				{#if tooltipDungeon.IsActive && tooltipDungeon.DisappearAtTicks}
+				{#if tooltipDungeon.IsActive && tooltipDungeon.DisappearAt}
 					<div class="tooltip-timer">
 						<svg class="timer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
 							<circle cx="12" cy="12" r="10"></circle>
 							<polyline points="12,6 12,12 16,14"></polyline>
 						</svg>
-						<span>{formatTimeUntilDisappear(tooltipDungeon.DisappearAtTicks)}</span>
+						<span>{formatTimeUntilDisappear(tooltipDungeon.DisappearAt)}</span>
 					</div>
 				{/if}
 				

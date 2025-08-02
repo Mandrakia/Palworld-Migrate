@@ -42,4 +42,6 @@ export interface DungeonWithState extends Dungeon {
     IsActive: boolean;
     DisappearAtTicks: number;
     RespawnAtTicks: number;
+    DisappearAt: number;
+    RespawnAt: number;
 }
