@@ -121,5 +121,5 @@ export function toRealTime(gameTimeTicks: number): number {
     const offsetMs = new Date(Number(localMs)).getTimezoneOffset() * 60 * 1000;
 
     // Convert to UTC by subtracting local offset
-    return Number(localMs) - offsetMs;
+    return Number(localMs) + offsetMs;
 }
