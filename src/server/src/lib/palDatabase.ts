@@ -101,8 +101,8 @@ export function cleanTribe(tribe: string): string {
 }
 
 //Get data from backups
-export function toRealTime(gameTimeTicks: number) : number {
-    // Known pairs: ts = real ticks (.NET), gt = game time
+export function toRealTime(gameTimeTicks: number): number {
+    // Known pairs: ts = real ticks (.NET, in LOCAL TIME), gt = game time
     const ts1 = 638898025627830000n;
     const gt1 = 388580560000000n;
 
@@ -113,8 +113,13 @@ export function toRealTime(gameTimeTicks: number) : number {
     const ratio = Number(gameTimeTicks - Number(gt2)) / Number(gt1 - gt2);
     const interpolatedTicks = ts2 + BigInt(Math.round(Number(ts1 - ts2) * ratio));
 
-    // .NET ticks to JS Date (ticks since 0001-01-01 to ms since 1970-01-01)
+    // .NET ticks to JS ms since 1970-01-01 (LOCAL)
     const epochTicks = 621355968000000000n;
-    const msSinceUnixEpoch = (interpolatedTicks - epochTicks) / 10000n;
-    return Number(msSinceUnixEpoch); // UNIX timestamp in milliseconds
+    const localMs = (interpolatedTicks - epochTicks) / 10000n;
+
+    // Offset from UTC in ms
+    const offsetMs = new Date(Number(localMs)).getTimezoneOffset() * 60 * 1000;
+
+    // Convert to UTC by subtracting local offset
+    return Number(localMs) - offsetMs;
 }
