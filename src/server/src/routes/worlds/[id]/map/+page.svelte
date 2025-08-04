@@ -170,7 +170,7 @@
 		if (!untilTimestamp) return '';
 		
 		const currentTime = Math.floor(Date.now()); // Current Unix timestamp
-		const timeDiff = (untilTimestamp - currentTime) / 1000;
+		const timeDiff = Math.floor((untilTimestamp - currentTime) / 1000);
 		
 		if (timeDiff <= 0) return 'Expired';
 		
