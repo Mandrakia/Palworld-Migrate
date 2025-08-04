@@ -53,7 +53,8 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
             }
             
             return {
-                ...dungeon, 
+                ...dungeon,
+                Timestamp: serverRealTime.Timestamp,
                 IsActive: state && state.BossState === "EPalDungeonInstanceBossState::Spawned", 
                 DisappearAtTicks: state?.DisappearTimeAt, 
                 RespawnAtTicks: state?.RespawnBossTimeAt,
