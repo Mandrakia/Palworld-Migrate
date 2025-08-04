@@ -5,6 +5,7 @@ import rawDungeons from "$lib/dungeons.json";
 import type {Dungeon} from "$lib";
 import type {DungeonSaveData} from "$save-edit/models/DungeonSaveData";
 import {toRealTime} from "$lib/palDatabase";
+import type {DungeonPointMarkerSaveData} from "$save-edit/models/DungeonPointMarkerSaveData";
 
 export const GET: RequestHandler = async ({ params, locals, url }) => {
     try {
@@ -38,8 +39,8 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
         const gameToRealOffset = serverRealTime - serverGameTime;
         
         return json(dungeons.map(dungeon=>{
-            const state : DungeonSaveData = serverSave.DungeonSaveData.find(a=> a.MarkerPointId === dungeon.Id)
-            
+            const state : DungeonSaveData = serverSave.DungeonSaveData.find(a=> a.MarkerPointId === dungeon.Id);
+            const respawn: DungeonPointMarkerSaveData = serverSave.DungeonPointMarkerSaveData.find(a=> a.MarkerPointId === dungeon.Id);
             // Convert game time ticks to real Unix timestamps
             let disappearAt: number | null = null;
             let respawnAt: number | null = null;
@@ -48,8 +49,8 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
                 disappearAt = toRealTime(state.DisappearTimeAt);
             }
             
-            if (state?.RespawnBossTimeAt) {
-                respawnAt = toRealTime(state.RespawnBossTimeAt);
+            if (respawn?.NextRespawnGameTime) {
+                respawnAt = toRealTime(respawn.NextRespawnGameTime);
             }
             
             return {
