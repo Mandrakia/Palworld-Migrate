@@ -171,8 +171,8 @@
 	function formatTimeUntilDisappear(disappearAt: number | undefined): string {
 		if (!disappearAt) return '';
 		
-		const currentTime = Math.floor(Date.now() / 1000); // Current Unix timestamp
-		const timeDiff = disappearAt - currentTime;
+		const currentTime = Math.floor(Date.now()); // Current Unix timestamp
+		const timeDiff = (disappearAt - currentTime) / 1000;
 		
 		if (timeDiff <= 0) return 'Expired';
 		

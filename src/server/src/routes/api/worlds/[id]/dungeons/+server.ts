@@ -4,6 +4,7 @@ import {Pal} from "$save-edit/models/Pal";
 import rawDungeons from "$lib/dungeons.json";
 import type {Dungeon} from "$lib";
 import type {DungeonSaveData} from "$save-edit/models/DungeonSaveData";
+import {toRealTime} from "$lib/palDatabase";
 
 export const GET: RequestHandler = async ({ params, locals, url }) => {
     try {
@@ -44,31 +45,11 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
             let respawnAt: number | null = null;
             
             if (state?.DisappearTimeAt) {
-                // Calculate time difference in game time
-                const diff = state.DisappearTimeAt - serverGameTime;
-                
-                // Calculate ratio between real time and game time
-                const ratio = serverRealTime / serverGameTime;
-                
-                // Apply ratio to get real time span
-                const spanLeft = diff * ratio;
-                
-                // Convert to Unix timestamp
-                disappearAt = spanLeft
+                disappearAt = toRealTime(state.DisappearTimeAt);
             }
             
             if (state?.RespawnBossTimeAt) {
-                // Calculate time difference in game time
-                const diff = state.RespawnBossTimeAt - serverGameTime;
-                
-                // Calculate ratio between real time and game time
-                const ratio = serverRealTime / serverGameTime;
-                
-                // Apply ratio to get real time span
-                const spanLeft = diff * ratio;
-                
-                // Convert to Unix timestamp
-                respawnAt = spanLeft
+                respawnAt = toRealTime(state.RespawnBossTimeAt);
             }
             
             return {
@@ -79,7 +60,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
                 DisappearAt: disappearAt,
                 RespawnAt: respawnAt,
                 TimeDiff: state?.DisappearTimeAt - serverSave.GameTime,
-                GameTime: gameToRealOffset,
+                GameTime: serverGameTime,
                 RealTime: serverRealTime
             }
 

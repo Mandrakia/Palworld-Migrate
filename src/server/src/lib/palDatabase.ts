@@ -99,3 +99,22 @@ export function cleanSizeType(size: string): string {
 export function cleanTribe(tribe: string): string {
   return tribe.replace('EPalTribeID::', '');
 }
+
+//Get data from backups
+export function toRealTime(gameTimeTicks: number) : number {
+    // Known pairs: ts = real ticks (.NET), gt = game time
+    const ts1 = 638898025627830000n;
+    const gt1 = 388580560000000n;
+
+    const ts2 = 638897723789080000n;
+    const gt2 = 374999550000000n;
+
+    // Interpolation
+    const ratio = Number(gameTimeTicks - Number(gt2)) / Number(gt1 - gt2);
+    const interpolatedTicks = ts2 + BigInt(Math.round(Number(ts1 - ts2) * ratio));
+
+    // .NET ticks to JS Date (ticks since 0001-01-01 to ms since 1970-01-01)
+    const epochTicks = 621355968000000000n;
+    const msSinceUnixEpoch = (interpolatedTicks - epochTicks) / 10000n;
+    return Number(msSinceUnixEpoch); // UNIX timestamp in milliseconds
+}
