@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-    import {sav_to_map, type Point, sav_to_front, normalizeToTopLeft} from '$lib/map_utils';
+    import { normalizeToTopLeft} from '$lib/map_utils';
     import type { DungeonWithState } from '$lib/types';
     import type { PageData } from './$types';
 
@@ -136,24 +136,22 @@
 
 		// Calculate camp positions
 		if (camps.length > 0) {
-			const positions = camps.map(camp => {
+            campPositions = camps.map(camp => {
 				const paldexCoords = normalizeToTopLeft(camp.Coords);
 				const x = paldexCoords.x * baseWidth;
 				const y = paldexCoords.y * baseHeight;
 				return { ...camp, x, y };
 			});
-			campPositions = positions;
 		}
 		
 		// Calculate dungeon positions
 		if (dungeons.length > 0) {
-			const positions = dungeons.map(dungeon => {
+            dungeonPositions = dungeons.map(dungeon => {
 				const paldexCoords = normalizeToTopLeft({ x: dungeon.X, y: dungeon.Y });
 				const x = paldexCoords.x * baseWidth;
 				const y = paldexCoords.y * baseHeight;
 				return { ...dungeon, x, y };
 			});
-			dungeonPositions = positions;
 		}
 	}
 
@@ -168,11 +166,11 @@
 		}
 	});
 
-	function formatTimeUntilDisappear(disappearAt: number | undefined): string {
-		if (!disappearAt) return '';
+	function formatTimeUntil(untilTimestamp: number | undefined): string {
+		if (!untilTimestamp) return '';
 		
 		const currentTime = Math.floor(Date.now()); // Current Unix timestamp
-		const timeDiff = (disappearAt - currentTime) / 1000;
+		const timeDiff = (untilTimestamp - currentTime) / 1000;
 		
 		if (timeDiff <= 0) return 'Expired';
 		
@@ -388,14 +386,22 @@
 				
 				{#if tooltipDungeon.IsActive && tooltipDungeon.DisappearAt}
 					<div class="tooltip-timer">
-						<svg class="timer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+						<svg class="timer-icon" viewBox="0 0 24 24" stroke="currentColor">
 							<circle cx="12" cy="12" r="10"></circle>
 							<polyline points="12,6 12,12 16,14"></polyline>
 						</svg>
-						<span>{formatTimeUntilDisappear(tooltipDungeon.DisappearAt)}</span>
+						<span>{formatTimeUntil(tooltipDungeon.DisappearAt)}</span>
 					</div>
 				{/if}
-				
+                {#if !tooltipDungeon.IsActive && tooltipDungeon.RespawnAt}
+                    <div class="tooltip-timer">
+                        <svg class="timer-icon" viewBox="0 0 24 24" stroke="currentColor">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12,6 12,12 16,14"></polyline>
+                        </svg>
+                        <span>{formatTimeUntil(tooltipDungeon.RespawnAt)}</span>
+                    </div>
+                {/if}
 				<div class="tooltip-coords">
 					<span>X: {Math.round(tooltipDungeon.X)}, Y: {Math.round(tooltipDungeon.Y)}</span>
 				</div>
