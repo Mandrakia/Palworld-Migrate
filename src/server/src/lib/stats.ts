@@ -56,10 +56,10 @@ export function GetPalStats(
 
 	// Sum up all passive skill buffs
 	for (const skill of skills) {
-		if (!skill.Name) continue;
+		if (!skill.Id) continue;
 		
 		try {
-			const passiveData = getPassive(skill.Name);
+			const passiveData = getPassive(skill.Id);
 			if (passiveData && passiveData.Buff) {
 				// Buff values are already in decimal format (0.15 = 15%)
 				attackBonusMultiplier += passiveData.Buff.b_Attack;
