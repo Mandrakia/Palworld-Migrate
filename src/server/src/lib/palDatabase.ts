@@ -72,6 +72,7 @@ export function getPassive(passiveId: string) : PalPassiveSkill {
     return passives[passiveId];
 }
 export function getPalData(characterId: string): PalDatabaseEntry | null {
+    characterId = characterId.replace(/BOSS_/g, '');
   // Try direct lookup first
   if (palDatabase[characterId]) {
     return palDatabase[characterId];
