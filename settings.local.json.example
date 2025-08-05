@@ -1,0 +1,10 @@
+{
+  "savePath": "/path/to/your/palworld-saves/0",
+  "metaPath": "/path/to/your/meta/file.js",
+  "server": {
+    "port": 3000
+  },
+  "saveEdit": {
+    "verbose": true
+  }
+}

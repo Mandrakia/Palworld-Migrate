@@ -4,7 +4,11 @@
   "description": "Tool to migrate a character from server to server",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test-server": "cd src/server && npm run dev",
+    "meta": "npx tsx src/save-edit/generation/Generator.ts",
+    "build-server": "cd src/server && npm run build",
+    "preview-server": "cd src/server && npm run preview"
   },
   "repository": {
     "type": "git",

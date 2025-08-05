@@ -1,0 +1,16 @@
+{
+  "savePath": ["/home/jpgire/palworld-saves/0", "/home/jpgire/palworld-backups/0"],
+  "metaPath": "src/save-edit/generation/character_meta.ts",
+  "server": {
+    "host": "localhost",
+    "allowed-domains": [
+      "palworld.mandrasoft.org"
+    ],
+    "port": 5173,
+    "dev": true
+  },
+  "saveEdit": {
+    "outputDir": "models",
+    "verbose": false
+  }
+}

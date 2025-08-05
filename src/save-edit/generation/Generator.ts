@@ -1,9 +1,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { PropertyMeta, EntityMeta, TypeResolver } from './schema';
-const metaPath = process.env.META || process.argv[2];
+import { getSetting } from '../../lib/settings';
+
+const metaPath = process.env.META || process.argv[2] || getSetting('metaPath');
 if (!metaPath) {
-  console.error('❌ Error: META path not specified. Use env META=... or pass as CLI arg.');
+  console.error('❌ Error: META path not specified. Use env META=..., pass as CLI arg, or set in settings.json');
   process.exit(1);
 }
 
@@ -11,7 +13,7 @@ const resolvedMetaPath = path.resolve(process.cwd(), metaPath);
 console.log(resolvedMetaPath);
 const { EntitySchemas } = require(resolvedMetaPath) as { EntitySchemas: Record<string, EntityMeta> };
 console.log(EntitySchemas);
-const outputDir = path.resolve(__dirname,'..','models');
+const outputDir = path.resolve(__dirname, '..', getSetting('saveEdit').outputDir);
 if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
 
 const knownPolymorphicTypes = new Set(

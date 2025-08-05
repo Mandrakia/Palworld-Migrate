@@ -18,13 +18,23 @@ interface ServerCache {
   lastModified: Date;
   isLoading: boolean;
   playerFiles: Record<string, PlayerFileCache>;
+  savePath: string; // Track which save path this server came from
+  pathIndex: number; // Track the index of the save path
+}
+
+interface WorldIdMapping {
+  originalId: string;
+  uniqueId: string;
+  pathIndex: number;
+  savePath: string;
 }
 
 class SaveFileWatcher {
   private static instance: SaveFileWatcher;
   private cache: Record<string, ServerCache> = {};
-  private watcher: FSWatcher | null = null;
+  private watchers: FSWatcher[] = [];
   private debounceTimers: Record<string, NodeJS.Timeout> = {};
+  private worldIdMappings: Map<string, WorldIdMapping> = new Map();
 
   private constructor() {}
 
@@ -39,27 +49,56 @@ class SaveFileWatcher {
     console.log('Initializing SaveFileWatcher...');
     
     try {
+      await this.buildWorldIdMappings();
       await this.loadInitialCache();
       this.startWatching();
       console.log('SaveFileWatcher initialized successfully');
+      console.log('World ID mappings:', Array.from(this.worldIdMappings.entries()));
     } catch (error) {
       console.error('Failed to initialize SaveFileWatcher:', error);
       throw error;
     }
   }
 
-  private async loadInitialCache(): Promise<void> {
-    const savePath = environment.savePath;
-    const serverIds = await this.getServerDirectories();
+  private async buildWorldIdMappings(): Promise<void> {
+    const savePaths = environment.savePaths;
+    const seenIds = new Set<string>();
     
-    for (const serverId of serverIds) {
-      console.log(`Loading initial cache for server: ${serverId}`);
-      await this.loadServerCache(serverId);
+    console.log('Building world ID mappings for paths:', savePaths);
+    
+    for (let pathIndex = 0; pathIndex < savePaths.length; pathIndex++) {
+      const savePath = savePaths[pathIndex];
+      
+      try {
+        const serverDirectories = await this.getServerDirectoriesForPath(savePath);
+        
+        for (const originalId of serverDirectories) {
+          let uniqueId = originalId;
+          
+          // Handle collisions by appending _index
+          if (seenIds.has(originalId)) {
+            uniqueId = `${originalId}_${pathIndex}`;
+            console.log(`World ID collision detected: ${originalId} -> ${uniqueId}`);
+          }
+          
+          seenIds.add(uniqueId);
+          
+          this.worldIdMappings.set(uniqueId, {
+            originalId,
+            uniqueId,
+            pathIndex,
+            savePath
+          });
+          
+          console.log(`Mapped world: ${originalId} -> ${uniqueId} (path: ${savePath})`);
+        }
+      } catch (error) {
+        console.error(`Failed to scan save path ${savePath}:`, error);
+      }
     }
   }
 
-  private async getServerDirectories(): Promise<string[]> {
-    const savePath = environment.savePath;
+  private async getServerDirectoriesForPath(savePath: string): Promise<string[]> {
     console.log('SaveFileWatcher: Getting server directories from:', savePath);
     
     try {
@@ -84,53 +123,72 @@ class SaveFileWatcher {
     }
   }
 
-  private async loadServerCache(serverId: string): Promise<void> {
-    if (!this.cache[serverId]) {
-      this.cache[serverId] = {
+  private async loadInitialCache(): Promise<void> {
+    console.log('Loading initial cache for all mapped worlds...');
+    
+    for (const [uniqueId, mapping] of this.worldIdMappings.entries()) {
+      console.log(`Loading initial cache for world: ${uniqueId}`);
+      await this.loadServerCache(uniqueId);
+    }
+  }
+
+  private async loadServerCache(uniqueId: string): Promise<void> {
+    const mapping = this.worldIdMappings.get(uniqueId);
+    if (!mapping) {
+      console.error(`No mapping found for world ID: ${uniqueId}`);
+      return;
+    }
+
+    if (!this.cache[uniqueId]) {
+      this.cache[uniqueId] = {
         serverSave: null,
         players: [],
         backups: [],
         lastModified: new Date(),
         isLoading: false,
-        playerFiles: {}
+        playerFiles: {},
+        savePath: mapping.savePath,
+        pathIndex: mapping.pathIndex
       };
     }
 
-    const serverCache = this.cache[serverId];
+    const serverCache = this.cache[uniqueId];
     serverCache.isLoading = true;
 
     try {
       // Load main server save
-      await this.loadServerSave(serverId);
+      await this.loadServerSave(uniqueId);
       
       // Load all player files
-      await this.loadPlayerFiles(serverId);
+      await this.loadPlayerFiles(uniqueId);
       
       // Load backup directories
-      await this.loadBackupDirectories(serverId);
+      await this.loadBackupDirectories(uniqueId);
       
       serverCache.lastModified = new Date();
     } catch (error) {
-      console.error(`Failed to load cache for server ${serverId}:`, error);
+      console.error(`Failed to load cache for server ${uniqueId}:`, error);
     } finally {
       serverCache.isLoading = false;
     }
   }
 
-  private async loadServerSave(serverId: string): Promise<void> {
+  private async loadServerSave(uniqueId: string): Promise<void> {
     try {
-      const serverSave = await loadServerFile(serverId);
-      this.cache[serverId].serverSave = serverSave;
-      console.log(`Loaded server save for: ${serverId}`);
+      const serverSave = await loadServerFile(uniqueId);
+      this.cache[uniqueId].serverSave = serverSave;
+      console.log(`Loaded server save for: ${uniqueId}`);
     } catch (error) {
-      console.error(`Failed to load server save for ${serverId}:`, error);
-      this.cache[serverId].serverSave = null;
+      console.error(`Failed to load server save for ${uniqueId}:`, error);
+      this.cache[uniqueId].serverSave = null;
     }
   }
 
-  private async loadPlayerFiles(serverId: string): Promise<void> {
-    const savePath = environment.savePath;
-    const playersDir = join(savePath, serverId, 'Players');
+  private async loadPlayerFiles(uniqueId: string): Promise<void> {
+    const mapping = this.worldIdMappings.get(uniqueId);
+    if (!mapping) return;
+
+    const playersDir = join(mapping.savePath, mapping.originalId, 'Players');
     
     try {
       const playerFiles = await readdir(playersDir);
@@ -144,7 +202,7 @@ class SaveFileWatcher {
           
           try {
             const stats = await stat(filePath);
-            const character = await convertPlayerFile(serverId, guid);
+            const character = await convertPlayerFile(uniqueId, guid);
             
             players.push(character);
             playerFileCache[guid] = {
@@ -152,25 +210,27 @@ class SaveFileWatcher {
               lastModified: stats.mtime
             };
             
-            console.log(`Loaded player file: ${guid}`);
+            console.log(`Loaded player file: ${guid} for world ${uniqueId}`);
           } catch (error) {
-            console.error(`Failed to load player file ${guid}:`, error);
+            console.error(`Failed to load player file ${guid} for world ${uniqueId}:`, error);
           }
         }
       }
       
-      this.cache[serverId].players = players;
-      this.cache[serverId].playerFiles = playerFileCache;
+      this.cache[uniqueId].players = players;
+      this.cache[uniqueId].playerFiles = playerFileCache;
     } catch (error) {
-      console.error(`Failed to load player files for ${serverId}:`, error);
-      this.cache[serverId].players = [];
-      this.cache[serverId].playerFiles = {};
+      console.error(`Failed to load player files for ${uniqueId}:`, error);
+      this.cache[uniqueId].players = [];
+      this.cache[uniqueId].playerFiles = {};
     }
   }
 
-  private async loadBackupDirectories(serverId: string): Promise<void> {
-    const savePath = environment.savePath;
-    const backupWorldDir = join(savePath, serverId, 'backup', 'world');
+  private async loadBackupDirectories(uniqueId: string): Promise<void> {
+    const mapping = this.worldIdMappings.get(uniqueId);
+    if (!mapping) return;
+
+    const backupWorldDir = join(mapping.savePath, mapping.originalId, 'backup', 'world');
     
     try {
       const backupEntries = await readdir(backupWorldDir);
@@ -186,59 +246,63 @@ class SaveFileWatcher {
       
       // Sort backup directories by name (datetime strings)
       backups.sort();
-      this.cache[serverId].backups = backups;
-      console.log(`Loaded ${backups.length} backup directories for: ${serverId}`);
+      this.cache[uniqueId].backups = backups;
+      console.log(`Loaded ${backups.length} backup directories for: ${uniqueId}`);
     } catch (error) {
-      console.error(`Failed to load backup directories for ${serverId}:`, error);
-      this.cache[serverId].backups = [];
+      console.error(`Failed to load backup directories for ${uniqueId}:`, error);
+      this.cache[uniqueId].backups = [];
     }
   }
 
   private startWatching(): void {
-    const savePath = environment.savePath;
+    const savePaths = environment.savePaths;
     
-    // Watch the entire save directory and filter events
-    console.log('SaveFileWatcher: Setting up file watching...');
-    console.log('SaveFileWatcher: Watching path:', savePath);
+    console.log('SaveFileWatcher: Setting up file watching for multiple paths...');
     
-    this.watcher = watch(savePath, {
-      ignored: /\.tmp$|\.temp$/,
-      persistent: true,
-      ignoreInitial: true,
-      usePolling: false,
-      interval: 1000,
-      binaryInterval: 3000,
-      alwaysStat: true,
-      depth: 99,
-      awaitWriteFinish: {
-        stabilityThreshold: 2000,
-        pollInterval: 100
-      }
-    });
+    for (const savePath of savePaths) {
+      console.log('SaveFileWatcher: Watching path:', savePath);
+      
+      const watcher = watch(savePath, {
+        ignored: /\.tmp$|\.temp$/,
+        persistent: true,
+        ignoreInitial: true,
+        usePolling: false,
+        interval: 1000,
+        binaryInterval: 3000,
+        alwaysStat: true,
+        depth: 99,
+        awaitWriteFinish: {
+          stabilityThreshold: 2000,
+          pollInterval: 100
+        }
+      });
 
-    this.watcher
-      .on('change', (path) => {
-        console.log('SaveFileWatcher: File changed:', path);
-        if (this.isRelevantFile(path)) {
-          this.handleFileChange(path);
-        }
-      })
-      .on('add', (path) => {
-        console.log('SaveFileWatcher: File added:', path);
-        if (this.isRelevantFile(path)) {
-          this.handleFileAdd(path);
-        }
-      })
-      .on('unlink', (path) => {
-        console.log('SaveFileWatcher: File deleted:', path);
-        if (this.isRelevantFile(path)) {
-          this.handleFileDelete(path);
-        }
-      })
-      .on('error', (error) => console.error('SaveFileWatcher: File watcher error:', error))
-      .on('ready', () => console.log('SaveFileWatcher: Ready and watching for changes'));
+      watcher
+        .on('change', (path) => {
+          console.log('SaveFileWatcher: File changed:', path);
+          if (this.isRelevantFile(path)) {
+            this.handleFileChange(path);
+          }
+        })
+        .on('add', (path) => {
+          console.log('SaveFileWatcher: File added:', path);
+          if (this.isRelevantFile(path)) {
+            this.handleFileAdd(path);
+          }
+        })
+        .on('unlink', (path) => {
+          console.log('SaveFileWatcher: File deleted:', path);
+          if (this.isRelevantFile(path)) {
+            this.handleFileDelete(path);
+          }
+        })
+        .on('error', (error) => console.error('SaveFileWatcher: File watcher error:', error))
+        .on('ready', () => console.log(`SaveFileWatcher: Ready and watching for changes in: ${savePath}`));
 
-    console.log(`SaveFileWatcher: Started watching save files in: ${savePath}`);
+      this.watchers.push(watcher);
+    }
+
+    console.log(`SaveFileWatcher: Started watching ${savePaths.length} save paths`);
   }
 
   private isRelevantFile(filePath: string): boolean {
@@ -264,7 +328,6 @@ class SaveFileWatcher {
     this.processFileDelete(filePath);
   }
 
-
   private debounceFileOperation(filePath: string, operation: () => void): void {
     const key = filePath;
     
@@ -279,39 +342,40 @@ class SaveFileWatcher {
   }
 
   private async processFileChange(filePath: string): Promise<void> {
-    const serverId = this.extractServerIdFromPath(filePath);
-    if (!serverId) return;
+    const uniqueId = this.extractUniqueIdFromPath(filePath);
+    if (!uniqueId) return;
 
     const fileName = basename(filePath);
     
     if (fileName === 'Level.sav') {
-      await this.loadServerSave(serverId);
+      await this.loadServerSave(uniqueId);
     } else if (filePath.includes('/Players/') && fileName.endsWith('.sav')) {
       const guid = fileName.replace('.sav', '');
-      await this.loadSinglePlayerFile(serverId, guid);
+      await this.loadSinglePlayerFile(uniqueId, guid);
     }
   }
 
   private async processFileDelete(filePath: string): Promise<void> {
-    const serverId = this.extractServerIdFromPath(filePath);
-    if (!serverId) return;
+    const uniqueId = this.extractUniqueIdFromPath(filePath);
+    if (!uniqueId) return;
 
     if (filePath.includes('/Players/') && filePath.endsWith('.sav')) {
       const guid = basename(filePath).replace('.sav', '');
-      this.removePlayers(serverId, guid);
+      this.removePlayers(uniqueId, guid);
     }
   }
 
+  private async loadSinglePlayerFile(uniqueId: string, guid: string): Promise<void> {
+    const mapping = this.worldIdMappings.get(uniqueId);
+    if (!mapping) return;
 
-  private async loadSinglePlayerFile(serverId: string, guid: string): Promise<void> {
     try {
-      const character = await convertPlayerFile(serverId, guid);
-      const savePath = environment.savePath;
-      const filePath = join(savePath, serverId, 'Players', `${guid}.sav`);
+      const character = await convertPlayerFile(uniqueId, guid);
+      const filePath = join(mapping.savePath, mapping.originalId, 'Players', `${guid}.sav`);
       const stats = await stat(filePath);
 
       // Update cache
-      const serverCache = this.cache[serverId];
+      const serverCache = this.cache[uniqueId];
       if (serverCache) {
         // Remove old version if exists
         serverCache.players = serverCache.players.filter(p => 
@@ -325,15 +389,15 @@ class SaveFileWatcher {
           lastModified: stats.mtime
         };
         
-        console.log(`Updated player file in cache: ${guid}`);
+        console.log(`Updated player file in cache: ${guid} for world ${uniqueId}`);
       }
     } catch (error) {
-      console.error(`Failed to load single player file ${guid}:`, error);
+      console.error(`Failed to load single player file ${guid} for world ${uniqueId}:`, error);
     }
   }
 
-  private removePlayers(serverId: string, guid: string): void {
-    const serverCache = this.cache[serverId];
+  private removePlayers(uniqueId: string, guid: string): void {
+    const serverCache = this.cache[uniqueId];
     if (serverCache) {
       serverCache.players = serverCache.players.filter(p => {
         // Remove based on guid since we may not have PlayerId
@@ -342,55 +406,90 @@ class SaveFileWatcher {
       });
       
       delete serverCache.playerFiles[guid];
-      console.log(`Removed player from cache: ${guid}`);
+      console.log(`Removed player from cache: ${guid} for world ${uniqueId}`);
     }
   }
 
-  private extractServerIdFromPath(filePath: string): string | null {
-    const savePath = environment.savePath;
-    const relativePath = filePath.replace(savePath, '').replace(/^[\/\\]/, '');
-    const parts = relativePath.split(/[\/\\]/);
-    return parts.length > 0 ? parts[0] : null;
+  private extractUniqueIdFromPath(filePath: string): string | null {
+    // Find which save path this file belongs to and extract the unique ID
+    for (const [uniqueId, mapping] of this.worldIdMappings.entries()) {
+      if (filePath.startsWith(mapping.savePath)) {
+        const relativePath = filePath.replace(mapping.savePath, '').replace(/^[\/\\]/, '');
+        const parts = relativePath.split(/[\/\\]/);
+        if (parts.length > 0 && parts[0] === mapping.originalId) {
+          return uniqueId;
+        }
+      }
+    }
+    return null;
   }
 
-  // Public API methods
-  getServerCache(serverId: string): ServerCache | null {
-    return this.cache[serverId] || null;
+  // Public API methods - updated to work with unique IDs
+  getServerCache(uniqueId: string): ServerCache | null {
+    return this.cache[uniqueId] || null;
   }
 
   getAllServers(): string[] {
     return Object.keys(this.cache);
   }
 
-  getServerSave(serverId: string): ServerSave | null {
-    return this.cache[serverId]?.serverSave || null;
+  getServerSave(uniqueId: string): ServerSave | null {
+    return this.cache[uniqueId]?.serverSave || null;
   }
 
-  getPlayers(serverId: string): CharacterSave[] {
-    return this.cache[serverId]?.players || [];
+  getPlayers(uniqueId: string): CharacterSave[] {
+    return this.cache[uniqueId]?.players || [];
   }
 
-  getBackups(serverId: string): string[] {
-    return this.cache[serverId]?.backups || [];
+  getBackups(uniqueId: string): string[] {
+    return this.cache[uniqueId]?.backups || [];
   }
 
-  isServerLoading(serverId: string): boolean {
-    return this.cache[serverId]?.isLoading || false;
+  isServerLoading(uniqueId: string): boolean {
+    return this.cache[uniqueId]?.isLoading || false;
   }
 
-  async refreshServer(serverId: string): Promise<void> {
-    await this.loadServerCache(serverId);
+  async refreshServer(uniqueId: string): Promise<void> {
+    await this.loadServerCache(uniqueId);
+  }
+
+  // Helper methods for world ID mappings
+  getWorldMapping(uniqueId: string): WorldIdMapping | null {
+    return this.worldIdMappings.get(uniqueId) || null;
+  }
+
+  getAllWorldMappings(): WorldIdMapping[] {
+    return Array.from(this.worldIdMappings.values());
+  }
+
+  // Convert between unique and original IDs
+  getUniqueIdFromOriginal(originalId: string, pathIndex?: number): string | null {
+    for (const [uniqueId, mapping] of this.worldIdMappings.entries()) {
+      if (mapping.originalId === originalId && (pathIndex === undefined || mapping.pathIndex === pathIndex)) {
+        return uniqueId;
+      }
+    }
+    return null;
+  }
+
+  getOriginalIdFromUnique(uniqueId: string): string | null {
+    const mapping = this.worldIdMappings.get(uniqueId);
+    return mapping?.originalId || null;
   }
 
   destroy(): void {
-    if (this.watcher) {
-      this.watcher.close();
-      this.watcher = null;
+    // Close all watchers
+    for (const watcher of this.watchers) {
+      watcher.close();
     }
+    this.watchers = [];
     
     // Clear all debounce timers
     Object.values(this.debounceTimers).forEach(timer => clearTimeout(timer));
     this.debounceTimers = {};
+    
+    // Clear mappings
+    this.worldIdMappings.clear();
     
     console.log('SaveFileWatcher destroyed');
   }

@@ -5,6 +5,7 @@ import {ServerSave} from "$save-edit/models/ServerSave";
 import {CharacterSave} from "$save-edit/models/CharacterSave";
 import {homedir} from "os";
 import {spawn} from "child_process";
+import SaveFileWatcher from "./SaveFileWatcher";
 
 async function ensureDirectoryExists(dirPath: string): Promise<void> {
     try {
@@ -14,7 +15,7 @@ async function ensureDirectoryExists(dirPath: string): Promise<void> {
     }
 }
 
-async function isCacheValid(serverId: string, inputPath: string, outputPath: string): Promise<boolean> {
+async function isCacheValid(uniqueId: string, inputPath: string, outputPath: string): Promise<boolean> {
     const cacheDir = dirname(outputPath);
     const timestampPath = join(cacheDir, `${dirname(outputPath).split('/').pop()}_${inputPath.split('/').pop()}_timestamp`);
 
@@ -39,21 +40,59 @@ async function saveTimestamp(inputPath: string, outputPath: string): Promise<voi
     await writeFile(timestampPath, inputStats.mtime.getTime().toString());
 }
 
-async function convertSaveFile(serverId: string, inputFileName: string, outputFileName: string): Promise<string> {
-    const savePath = environment.savePath;
-    const cacheDir = join(homedir(), '.cache', 'palworld-edit', serverId);
-    const inputPath = join(savePath, serverId, inputFileName);
+function resolveServerPaths(uniqueId: string): { savePath: string; originalId: string } | null {
+    // Try to get mapping from SaveFileWatcher if available
+    try {
+        const watcher = SaveFileWatcher.getInstance();
+        const mapping = watcher.getWorldMapping(uniqueId);
+        if (mapping) {
+            return { savePath: mapping.savePath, originalId: mapping.originalId };
+        }
+    } catch (error) {
+        console.warn('SaveFileWatcher not available, using fallback logic');
+    }
+
+    // Fallback: check if uniqueId contains path index suffix (_0, _1, etc.)
+    const match = uniqueId.match(/^(.+)_(\d+)$/);
+    if (match) {
+        const [, originalId, pathIndexStr] = match;
+        const pathIndex = parseInt(pathIndexStr);
+        const savePaths = environment.savePaths;
+        const savePath = savePaths[pathIndex];
+        if (savePath) {
+            return { savePath, originalId };
+        }
+    }
+
+    // Fallback: assume it's an original ID and use first save path
+    const savePaths = environment.savePaths;
+    if (savePaths.length > 0) {
+        return { savePath: savePaths[0], originalId: uniqueId };
+    }
+
+    return null;
+}
+
+async function convertSaveFile(uniqueId: string, inputFileName: string, outputFileName: string): Promise<string> {
+    const paths = resolveServerPaths(uniqueId);
+    if (!paths) {
+        throw new Error(`Unable to resolve server paths for ID: ${uniqueId}`);
+    }
+
+    const { savePath, originalId } = paths;
+    const cacheDir = join(homedir(), '.cache', 'palworld-edit', uniqueId);
+    const inputPath = join(savePath, originalId, inputFileName);
     const outputPath = join(cacheDir, outputFileName);
     const convertScript = join(process.cwd(), '..', 'save-tools', 'convert.py');
 
     await ensureDirectoryExists(cacheDir);
 
-    if (await isCacheValid(serverId, inputPath, outputPath)) {
-        console.log(`Using cached conversion for ${serverId}/${inputFileName}`);
+    if (await isCacheValid(uniqueId, inputPath, outputPath)) {
+        console.log(`Using cached conversion for ${uniqueId}/${inputFileName}`);
         return outputPath;
     }
 
-    console.log(`Converting save file: ${serverId}/${inputFileName}`);
+    console.log(`Converting save file: ${uniqueId}/${inputFileName}`);
     await new Promise<void>((resolve, reject) => {
         const process = spawn('python3', [
             convertScript,
@@ -81,18 +120,18 @@ async function convertSaveFile(serverId: string, inputFileName: string, outputFi
     return outputPath;
 }
 
-export async function loadServerFile(serverId: string): Promise<ServerSave> {
-    const outputPath = await convertSaveFile(serverId, 'Level.sav', 'Level.sav.json');
+export async function loadServerFile(uniqueId: string): Promise<ServerSave> {
+    const outputPath = await convertSaveFile(uniqueId, 'Level.sav', 'Level.sav.json');
     const servDataText = await readFile(outputPath, 'utf-8');
     const servData = JSON.parse(servDataText);
     return new ServerSave(servData);
 }
 
-export async function convertPlayerFile(serverId: string, guid: string): Promise<CharacterSave> {
+export async function convertPlayerFile(uniqueId: string, guid: string): Promise<CharacterSave> {
     const inputFileName = join('Players', `${guid}.sav`);
     const outputFileName = `player_${guid}.json`;
     
-    const outputPath = await convertSaveFile(serverId, inputFileName, outputFileName);
+    const outputPath = await convertSaveFile(uniqueId, inputFileName, outputFileName);
     const playerDataText = await readFile(outputPath, 'utf-8');
     const playerData = JSON.parse(playerDataText);
     return new CharacterSave(playerData);
