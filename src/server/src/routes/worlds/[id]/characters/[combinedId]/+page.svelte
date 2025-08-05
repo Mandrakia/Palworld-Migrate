@@ -918,7 +918,7 @@
 								</div>
 							{/if}
                             <!-- Final stats -->
-                            {#if pal.characterId}
+                            {#if pal.characterId && pal.tribe}
                                 {@const stats = GetPalStats(pal.tribe, pal.talentHP, pal.talentShot, pal.talentDefense, pal.passiveSkills, pal.level, pal.friendshipPoint)}
                             <div class="space-y-2 mb-4">
                                 <div class="text-xs text-slate-400 uppercase tracking-wide flex items-center justify-between">
