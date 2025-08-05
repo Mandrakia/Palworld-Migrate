@@ -3,8 +3,9 @@
 	import PlayerCard from '$lib/PlayerCard.svelte';
 	import { goto } from '$app/navigation';
 	import { getGenderType } from '$lib/genderUtils';
+	import PassiveSkill from '$lib/PassiveSkill.svelte';
     import {derived} from "svelte/store";
-
+    import {GetPalStats} from "$lib/stats";
 	interface Props {
 		data: PageData;
 	}
@@ -105,27 +106,6 @@
 		return colorMapping[elementType || ''] || 'bg-slate-600 text-slate-200';
 	}
 
-	function getPassiveSkillRatingIcon(rating: number): string {
-		if (rating === -1) {
-			return '/T_icon_skillstatus_rank_arrow_00.png';
-		} else if (rating >= 0 && rating <= 4) {
-			return `/T_icon_skillstatus_rank_arrow_${rating.toString().padStart(2, '0')}.png`;
-		}
-		return '';
-	}
-
-	function getPassiveSkillRatingColor(rating: number): string {
-		const colorMapping: Record<number, string> = {
-			'-1': 'bg-red-900/50 text-red-300 border-red-500',
-			0: 'bg-gray-900/50 text-gray-300 border-gray-500',
-			1: 'bg-blue-900/50 text-blue-300 border-blue-500',
-			2: 'bg-green-900/50 text-green-300 border-green-500',
-			3: 'bg-purple-900/50 text-purple-300 border-purple-500',
-			4: 'bg-yellow-900/50 text-yellow-300 border-yellow-500'
-		};
-		
-		return colorMapping[rating] || 'bg-slate-900/50 text-slate-300 border-slate-500';
-	}
 
 	function getWorkSkillIcon(skillName: string): string {
 		const skillMapping: Record<string, number> = {
@@ -399,8 +379,8 @@
 					if (skill.Name === skillName) {
 						return {
 							rating: skill.Rating,
-							color: getPassiveSkillRatingColor(skill.Rating),
-							icon: getPassiveSkillRatingIcon(skill.Rating)
+							color: 'bg-slate-900/50 text-slate-300 border-slate-500', // Simplified since component handles this
+							icon: ''
 						};
 					}
 				}
@@ -661,19 +641,25 @@
 								
 								<!-- Selected Skills Display -->
 								{#if selectedPassiveSkills.size > 0}
-									<div class="flex flex-wrap gap-1 mb-2">
-										{#each Array.from(selectedPassiveSkills) as skillName}
-											{@const skillInfo = getPassiveSkillInfo(skillName)}
-											<div class="flex items-center space-x-1 px-2 py-1 rounded border text-xs {skillInfo.color}">
-												{#if skillInfo.icon}
-													<img src={skillInfo.icon} alt="Rating {skillInfo.rating}" class="w-3 h-3 {skillInfo.rating === -1 ? 'red-mask' : ''}" />
-												{/if}
-												<span class="truncate max-w-20">{skillName}</span>
-												<button onclick={() => togglePassiveSkill(skillName)} class="text-red-400 hover:text-red-300 ml-1">
-													×
-												</button>
-											</div>
-										{/each}
+									{@const selectedSkillsArray = Array.from(selectedPassiveSkills).map(skillName => {
+										const skillInfo = getPassiveSkillInfo(skillName);
+										return { Name: skillName, Rating: skillInfo.rating };
+									})}
+									<div class="mb-2">
+										<div class="flex flex-wrap gap-2">
+											{#each selectedSkillsArray.slice(0, 10) as skill}
+												<PassiveSkill 
+													{skill} 
+													size="sm"
+													showDescription={false}
+												/>
+											{/each}
+											{#if selectedSkillsArray.length > 10}
+												<div class="bg-slate-700/50 rounded p-1.5 text-center text-slate-400 text-xs">
+													+{selectedSkillsArray.length - 10} more
+												</div>
+											{/if}
+										</div>
 									</div>
 								{/if}
 
@@ -700,20 +686,24 @@
 											{#if filteredPassiveSkills.length > 0}
 												{#each filteredPassiveSkills as skillName}
 													{@const skillInfo = getPassiveSkillInfo(skillName)}
+													{@const skillObject = { Name: skillName, Rating: skillInfo.rating }}
 													<button
 														onclick={() => {
 															togglePassiveSkill(skillName);
 															passiveSkillSearch = '';
 															showPassiveDropdown = false;
 														}}
-														class="w-full flex items-center space-x-2 px-3 py-2 text-left hover:bg-slate-700 transition-colors border {skillInfo.color} text-xs"
+														class="w-full px-3 py-2 text-left hover:bg-slate-700 transition-colors text-xs flex items-center justify-between"
 													>
-														{#if skillInfo.icon}
-															<img src={skillInfo.icon} alt="Rating {skillInfo.rating}" class="w-4 h-4 flex-shrink-0 {skillInfo.rating === -1 ? 'red-mask' : ''}" />
-														{/if}
-														<span class="flex-1">{skillName}</span>
+														<div class="flex-1">
+															<PassiveSkill 
+																skill={skillObject} 
+																size="sm"
+																showDescription={false}
+															/>
+														</div>
 														{#if selectedPassiveSkills.has(skillName)}
-															<span class="text-green-400">✓</span>
+															<span class="text-green-400 ml-2">✓</span>
 														{/if}
 													</button>
 												{/each}
@@ -927,32 +917,48 @@
 									</div>
 								</div>
 							{/if}
-
+                            <!-- Final stats -->
+                            {#if pal.characterId}
+                                {@const stats = GetPalStats(pal.characterId, pal.talentHP, pal.talentShot, pal.talentDefense, pal.passiveSkills, pal.level, pal.friendshipPoint)}
+                            <div class="space-y-2 mb-4">
+                                <div class="text-xs text-slate-400 uppercase tracking-wide flex items-center justify-between">
+                                    <span>Stats</span>
+                                </div>
+                                <div class="grid grid-cols-3 gap-2">
+                                        <button
+                                                class="bg-slate-700 hover:bg-slate-600 rounded p-2 text-center transition-colors cursor-pointer {sortBy === 'talentHP' ? 'ring-2 ring-red-400' : ''}"
+                                        >
+                                            <div class="text-red-400 text-xs">❤️ HP</div>
+                                            <div class="text-white font-semibold">{stats.hp}</div>
+                                        </button>
+                                        <button
+                                                class="bg-slate-700 hover:bg-slate-600 rounded p-2 text-center transition-colors cursor-pointer {sortBy === 'talentShot' ? 'ring-2 ring-orange-400' : ''}"
+                                        >
+                                            <div class="text-orange-400 text-xs">⚔️ ATK</div>
+                                            <div class="text-white font-semibold">{stats.attack}</div>
+                                        </button>
+                                        <button
+                                                class="bg-slate-700 hover:bg-slate-600 rounded p-2 text-center transition-colors cursor-pointer {sortBy === 'talentDefense' ? 'ring-2 ring-blue-400' : ''}"
+                                        >
+                                            <div class="text-blue-400 text-xs">🛡️ DEF</div>
+                                            <div class="text-white font-semibold">{stats.defense}</div>
+                                        </button>
+                                </div>
+                            </div>
+                            {/if}
 							<!-- Passive Skills -->
 							{#if pal.passiveSkills && pal.passiveSkills.length > 0}
 								<div class="mb-4">
 									<div class="text-xs text-slate-400 uppercase tracking-wide mb-2">Passive Skills</div>
 									<div class="space-y-2">
 										{#each pal.passiveSkills as skill}
-											<button 
-												onclick={() => togglePassiveSkill(skill.Name)}
-												class="flex items-start space-x-2 p-2 rounded border transition-colors cursor-pointer hover:brightness-110 {getPassiveSkillRatingColor(skill.Rating)} w-full text-left"
-												title="Click to filter by {skill.Name}"
-											>
-												<div class="flex-shrink-0">
-													{#if getPassiveSkillRatingIcon(skill.Rating)}
-														<img 
-															src={getPassiveSkillRatingIcon(skill.Rating)} 
-															alt="Rating {skill.Rating}" 
-															class="w-4 h-4 {skill.Rating === -1 ? 'red-mask' : ''}"
-														/>
-													{/if}
-												</div>
-												<div class="flex-1 min-w-0">
-													<div class="text-sm font-medium truncate">{skill.Name}</div>
-													<div class="text-xs opacity-75 mt-1">{skill.Description}</div>
-												</div>
-											</button>
+											<PassiveSkill 
+												{skill} 
+												onClick={togglePassiveSkill}
+												clickable={true}
+												size="md"
+												showDescription={true}
+											/>
 										{/each}
 									</div>
 								</div>

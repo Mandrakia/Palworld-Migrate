@@ -1,20 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-
-export interface Settings {
-  savePath: string[];
-  metaPath: string;
-  server: {
-    host: string;
-    port: number;
-    dev: boolean;
-    'allowed-domains'?: string[];
-  };
-  saveEdit: {
-    outputDir: string;
-    verbose: boolean;
-  };
-}
+import type { Settings } from './interfaces/index';
 
 class SettingsLoader {
   private settings: Settings | null = null;

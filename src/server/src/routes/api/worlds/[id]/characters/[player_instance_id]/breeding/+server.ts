@@ -7,6 +7,7 @@ import type {Player} from "$save-edit/models/Player";
 import {Buff, getPalData, getPassive, palDatabase, PalDatabaseEntry} from "$lib/palDatabase";
 import type {ServerSave} from "$save-edit/models/ServerSave";
 import type {Guild} from "$save-edit/models/Guild";
+import type { BreedingSource } from '$lib/interfaces/index.js';
 
 function splitGuids(encoded: string): [string, string] {
     // Parse base36 string as BigInt
@@ -24,79 +25,45 @@ function splitGuids(encoded: string): [string, string] {
 
     return [guid1, guid2];
 }
-function breed(pal1 : PalCardData, pal2 : PalCardData, serverSave : ServerSave) {
-    if(pal1.characterId == null || pal2.characterId == null){
-        console.log("null char");
+function getBreedingResult(pal1: PalCardData, pal2: PalCardData): string | null {
+    if (pal1.characterId == null || pal2.characterId == null) {
+        return null;
     }
-    var bData1 = getPalData(pal1.characterId);
-    var bData2 = getPalData(pal2.characterId);
-
-    var combination = bData1?.Combinations.filter(a=> (a.ParentTribeA == pal1.characterId && a.ParentTribeB == pal2.characterId) || (a.ParentTribeA == pal2.characterId && a.ParentTribeB == pal1.characterId));
-    let closest: PalDatabaseEntry;
-    if(combination?.length) {
-        var res = combination[0].ChildCharacterID;
-        closest = getPalData(res)!;
+    
+    const bData1 = getPalData(pal1.characterId);
+    const bData2 = getPalData(pal2.characterId);
+    
+    if (!bData1 || !bData2) {
+        return null;
     }
-    else {
-        var bFinal = Math.floor((bData1?.CombiRank + bData2?.CombiRank + 1) / 2);
 
-        // Find the pal with CombiRank closest to bFinal
-        // If there's equality in distance, select the one with lowest CombiRank
-        closest = Object.values(palDatabase).filter(a=> a.Combinations.every(c=> c.ChildCharacterID !== a.Tribe.replace("EPalTribeID::",""))).sort((a, b) => {
+    // Check for specific breeding combinations first
+    const combination = bData1.Combinations.filter(a => 
+        (a.ParentTribeA == pal1.characterId && a.ParentTribeB == pal2.characterId) || 
+        (a.ParentTribeA == pal2.characterId && a.ParentTribeB == pal1.characterId)
+    );
+    
+    if (combination.length > 0) {
+        return combination[0].ChildCharacterID;
+    }
+    
+    // Calculate breeding rank and find closest match
+    const bFinal = Math.floor((bData1.CombiRank + bData2.CombiRank + 1) / 2);
+    
+    const closest = Object.values(palDatabase)
+        .filter(a => a.Combinations.every(c => c.ChildCharacterID !== a.Tribe.replace("EPalTribeID::", "")))
+        .sort((a, b) => {
             const distanceA = Math.abs(a.CombiRank - bFinal);
             const distanceB = Math.abs(b.CombiRank - bFinal);
-
-            // If distances are equal, sort by CombiRank (lowest first)
+            
             if (distanceA === distanceB) {
                 return a.CombiRank - b.CombiRank;
             }
-
-            // Otherwise sort by closest distance
+            
             return distanceA - distanceB;
-        })[0]; // Take the first (closest) result
-    }
-    let buff : Buff = {
-        b_Attack : 0,
-        b_CraftSpeed : 0,
-        b_Defense : 0,
-        b_MoveSpeed : 0
-    };
-    if(pal1.passiveSkills?.length) {
-        for (let passive of pal1.passiveSkills) {
-            let passStat = getPassive(passive.Id);
-            if(!passStat?.Buff) {
-                console.log("Missing passive :" + passive.Id);
-                continue;
-            }
-            buff.b_Attack += passStat.Buff.b_Attack;
-            buff.b_CraftSpeed += passStat.Buff.b_CraftSpeed;
-            buff.b_Defense += passStat.Buff.b_Defense;
-            buff.b_MoveSpeed += passStat.Buff.b_MoveSpeed;
-        }
-    }
-    if(pal2.passiveSkills?.length) {
-        for (let passive of pal2.passiveSkills) {
-            let passStat = getPassive(passive.Id);
-            if(!passStat?.Buff) {
-                console.log("Missing passive :" + passive.Id);
-                continue;
-            }
-            buff.b_Attack += passStat.Buff.b_Attack;
-            buff.b_CraftSpeed += passStat.Buff.b_CraftSpeed;
-            buff.b_Defense += passStat.Buff.b_Defense;
-            buff.b_MoveSpeed += passStat.Buff.b_MoveSpeed;
-        }
-    }
-    return {
-        "Pal 1": pal1,
-        "Pal 2": pal2,
-        "Result": closest,
-        "TalentScore" : (pal1.talentHP + pal2.talentHP + pal1.talentShot + pal2.talentShot + pal1.talentDefense + pal2.talentDefense) / 6,
-        "AttackPassiveScore" : buff.b_Attack,
-        "DefensePassiveScore" : buff.b_Defense,
-        "CraftSpeedPassiveScore" : buff.b_CraftSpeed,
-        "MoveSpeedPassiveScore" : buff.b_CraftSpeed,
-    }
+        })[0];
+    
+    return closest ? closest.Tribe.replace("EPalTribeID::", "") : null;
 }
 export const GET: RequestHandler = async ({ params, locals, url }) => {
     try {
@@ -134,32 +101,32 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
         const playerIdForFilter = pWorld.PlayerId || pSave.PlayerUid || 'unknown';
         const pals = getPlayerPals(pWorld, pSave, serverSave);
 
-        // Filter pals by gender
-        const malePals = pals.filter(pal => pal.gender === "EPalGenderType::Male" && pal.characterId !== null);
-        const femalePals = pals.filter(pal => pal.gender === "EPalGenderType::Female" && pal.characterId !== null);
+        // Filter pals to only include those with valid character IDs (ignore gender)
+        const validPals = pals.filter(pal => pal.characterId !== null);
 
-        // Generate all breeding combinations
-        const breedingResults = [];
-        for (const malePal of malePals) {
-            for (const femalePal of femalePals) {
-                const result = breed(malePal, femalePal, serverSave);
-                breedingResults.push(result);
-            }
-        }
-
-        // Group results by BPClass/CharacterID and keep only the highest TalentScore for each unique result
-        const uniqueResults = new Map<string, any>();
+        // Generate all possible breeding combinations (ignore gender restrictions)
+        const breedingResults: Record<string, BreedingSource[]> = {};
         
-        for (const result of breedingResults) {
-            const resultId = result.Result.Tribe; // Using BPClass as the unique identifier
-            
-            if (!uniqueResults.has(resultId) || uniqueResults.get(resultId).TalentScore < result.TalentScore) {
-                uniqueResults.set(resultId, result);
+        for (let i = 0; i < validPals.length; i++) {
+            for (let j = i + 1; j < validPals.length; j++) {
+                const pal1 = validPals[i];
+                const pal2 = validPals[j];
+                
+                const resultCharacterId = getBreedingResult(pal1, pal2);
+                if (resultCharacterId) {
+                    if (!breedingResults[resultCharacterId]) {
+                        breedingResults[resultCharacterId] = [];
+                    }
+                    
+                    breedingResults[resultCharacterId].push({
+                        "Pal 1": pal1,
+                        "Pal 2": pal2
+                    });
+                }
             }
         }
 
-        // Convert Map to array and return
-        return json(Array.from(uniqueResults.values()));
+        return json(breedingResults);
 
     } catch (err) {
         console.error(`Error getting world details for ${params.id}:`, err);
