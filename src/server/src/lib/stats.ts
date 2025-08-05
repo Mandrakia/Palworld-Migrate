@@ -89,7 +89,7 @@ export function GetPalStats(
 
 	// Defense: (100 + (Defense_Stat + Friendship_Defense * Trust) * 0.075 * Level * (1 + Defense_IV%)) * (1 + Defense_Bonus%)
 	const defense = Math.floor(
-		(100 + trust_modified_defense * 0.075 * level * (1 + defense_iv_percent)) * 
+		(50 + trust_modified_defense * 0.075 * level * (1 + defense_iv_percent)) *
 		defenseBonusMultiplier
 		// Omitting SoulBonus and CondenserBonus as specified
 	);
