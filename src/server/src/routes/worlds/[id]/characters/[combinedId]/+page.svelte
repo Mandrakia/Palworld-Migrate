@@ -3,6 +3,7 @@
 	import PlayerCard from '$lib/PlayerCard.svelte';
 	import { goto } from '$app/navigation';
 	import { getGenderType } from '$lib/genderUtils';
+	import { getWorkSkillIcon, getWorkSkillName } from '$lib/workSuitabilityUtils';
 	import PassiveSkill from '$lib/PassiveSkill.svelte';
     import {derived} from "svelte/store";
     import {GetPalStats} from "$lib/stats";
@@ -107,48 +108,6 @@
 	}
 
 
-	function getWorkSkillIcon(skillName: string): string {
-		const skillMapping: Record<string, number> = {
-			'emitFlame': 0,           // Fire
-			'watering': 1,            // Watering
-			'seeding': 2,             // Seeding
-			'generateElectricity': 3, // Generate Electricity
-			'handcraft': 4,           // Handiwork
-			'collection': 5,          // Gathering
-			'deforest': 6,            // Deforestation
-			'mining': 7,              // Mining
-			'productMedicine': 8,     // Product Medicine
-			'cool': 10,               // Cool/Ice (index 10)
-			'transport': 11,          // Transport
-			'monsterFarm': 12         // Farm
-		};
-		
-		const iconIndex = skillMapping[skillName];
-		if (iconIndex !== undefined) {
-			return `/T_icon_palwork_${iconIndex.toString().padStart(2, '0')}.png`;
-		}
-		
-		return '';
-	}
-
-	function getWorkSkillName(skillName: string): string {
-		const nameMapping: Record<string, string> = {
-			'emitFlame': 'Fire',
-			'watering': 'Watering',
-			'seeding': 'Seeding',
-			'generateElectricity': 'Electricity',
-			'handcraft': 'Handiwork',
-			'collection': 'Gathering',
-			'deforest': 'Lumbering',
-			'mining': 'Mining',
-			'productMedicine': 'Medicine',
-			'cool': 'Cooling',
-			'transport': 'Transport',
-			'monsterFarm': 'Farming'
-		};
-		
-		return nameMapping[skillName] || skillName;
-	}
 
 	function getCombinedTalent(pal: any): number {
 		return (pal.talentHP || 0) + (pal.talentShot || 0) + (pal.talentDefense || 0);
