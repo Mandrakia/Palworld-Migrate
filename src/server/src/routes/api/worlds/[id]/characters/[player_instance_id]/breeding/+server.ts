@@ -65,6 +65,15 @@ function getBreedingResult(pal1: PalCardData, pal2: PalCardData): string | null 
     
     return closest ? closest.Tribe.replace("EPalTribeID::", "") : null;
 }
+
+function getPalDisplayName(characterId: string): string {
+    const palData = getPalData(characterId);
+    if (palData && palData.OverrideNameTextID && palData.OverrideNameTextID !== 'None') {
+        return palData.OverrideNameTextID;
+    }
+    // Fallback to character ID if no display name found
+    return characterId;
+}
 export const GET: RequestHandler = async ({ params, locals, url }) => {
     try {
         const { id, player_instance_id } = params;
@@ -105,7 +114,11 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
         const validPals = pals.filter(pal => pal.characterId !== null);
 
         // Generate all possible breeding combinations (ignore gender restrictions)
-        const breedingResults: Record<string, BreedingSource[]> = {};
+        const breedingResults: Record<string, {
+            characterId: string;
+            displayName: string;
+            combinations: BreedingSource[];
+        }> = {};
         
         for (let i = 0; i < validPals.length; i++) {
             for (let j = i + 1; j < validPals.length; j++) {
@@ -115,10 +128,14 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
                 const resultCharacterId = getBreedingResult(pal1, pal2);
                 if (resultCharacterId) {
                     if (!breedingResults[resultCharacterId]) {
-                        breedingResults[resultCharacterId] = [];
+                        breedingResults[resultCharacterId] = {
+                            characterId: resultCharacterId,
+                            displayName: getPalDisplayName(resultCharacterId),
+                            combinations: []
+                        };
                     }
                     
-                    breedingResults[resultCharacterId].push({
+                    breedingResults[resultCharacterId].combinations.push({
                         "Pal 1": pal1,
                         "Pal 2": pal2
                     });

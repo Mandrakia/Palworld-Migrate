@@ -52,6 +52,7 @@ export interface PalCardData extends BaseCharacterCardData {
 	rank: number;
 	ownerPlayerId?: string;
 	friendshipPoint?: number;
+    friendshipRank?: number;
 	ownedTime?: Date;
 	// Additional data from pals.json
 	displayName?: string;

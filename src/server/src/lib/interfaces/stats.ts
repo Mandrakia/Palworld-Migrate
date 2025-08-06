@@ -4,5 +4,5 @@ export interface CharacterStats {
 	hp: number;
 	attack: number;
 	defense: number;
-	workSpeed: number;
+	craftSpeed: number;
 }

@@ -216,9 +216,9 @@
 					valueA = a.ownedTime ? new Date(a.ownedTime).getTime() : 0;
 					valueB = b.ownedTime ? new Date(b.ownedTime).getTime() : 0;
 					break;
-				case 'friendshipPoint':
-					valueA = a.friendshipPoint || 0;
-					valueB = b.friendshipPoint || 0;
+				case 'friendshipRank':
+					valueA = a.friendshipRank || 0;
+					valueB = b.friendshipRank || 0;
 					break;
 				case 'level':
 					valueA = a.level || 0;
@@ -505,7 +505,7 @@
 									class="bg-slate-700 border border-slate-600 rounded px-3 py-1 text-sm text-white focus:border-slate-500 focus:outline-none"
 								>
 									<option value="ownedTime">Date Acquired</option>
-									<option value="friendshipPoint">Friendship</option>
+									<option value="friendshipRank">Friendship Rank</option>
 									<option value="level">Level</option>
 									<option value="combinedTalent">Combined Talent</option>
 									<option value="talentHP">HP Talent</option>
@@ -796,17 +796,26 @@
 										</div>
 									</div>
 								</div>
-								{#if pal.gender}
-									<div class="w-6 h-6">
-										{#if getGenderType(pal.gender) === 'male'}
-											<img src="/T_Icon_PanGender_Male.png" alt="Male" class="w-6 h-6" />
-										{:else if getGenderType(pal.gender) === 'female'}
-											<img src="/T_Icon_PanGender_Female.png" alt="Female" class="w-6 h-6" />
-										{:else}
-											<div class="text-lg">⚪</div>
-										{/if}
-									</div>
-								{/if}
+								<div class="flex items-center space-x-2">
+									<!-- Friendship Rank -->
+									{#if pal.friendshipRank && pal.friendshipRank >= 1}
+										<div class="flex items-center space-x-1">
+											<img src="/T_Icon_PalFriendship_Color.png" alt="Friendship" class="w-4 h-4" />
+											<span class="text-pink-400 font-bold text-sm">{pal.friendshipRank}</span>
+										</div>
+									{/if}
+									{#if pal.gender}
+										<div class="w-6 h-6">
+											{#if getGenderType(pal.gender) === 'male'}
+												<img src="/T_Icon_PanGender_Male.png" alt="Male" class="w-6 h-6" />
+											{:else if getGenderType(pal.gender) === 'female'}
+												<img src="/T_Icon_PanGender_Female.png" alt="Female" class="w-6 h-6" />
+											{:else}
+												<div class="text-lg">⚪</div>
+											{/if}
+										</div>
+									{/if}
+								</div>
 							</div>
 
 							<!-- Element Types -->
@@ -919,30 +928,32 @@
 							{/if}
                             <!-- Final stats -->
                             {#if pal.characterId && pal.tribe}
-                                {@const stats = GetPalStats(pal.tribe, pal.talentHP, pal.talentShot, pal.talentDefense, pal.passiveSkills, pal.level, pal.friendshipPoint)}
+                                {@const stats = GetPalStats(pal.tribe, pal.talentHP, pal.talentShot, pal.talentDefense, pal.passiveSkills, pal.level, pal.friendshipRank)}
                             <div class="space-y-2 mb-4">
                                 <div class="text-xs text-slate-400 uppercase tracking-wide flex items-center justify-between">
                                     <span>Stats</span>
                                 </div>
+                                <!-- HP - Full width -->
+                                <div class="w-full">
+                                    <div class="bg-slate-700 hover:bg-slate-600 rounded p-2 text-center transition-colors cursor-pointer">
+                                        <div class="text-red-400 text-xs">❤️ HP</div>
+                                        <div class="text-white font-semibold">{stats.hp}</div>
+                                    </div>
+                                </div>
+                                <!-- ATK, DEF, CRAFTSPEED - Three columns -->
                                 <div class="grid grid-cols-3 gap-2">
-                                        <button
-                                                class="bg-slate-700 hover:bg-slate-600 rounded p-2 text-center transition-colors cursor-pointer {sortBy === 'talentHP' ? 'ring-2 ring-red-400' : ''}"
-                                        >
-                                            <div class="text-red-400 text-xs">❤️ HP</div>
-                                            <div class="text-white font-semibold">{stats.hp}</div>
-                                        </button>
-                                        <button
-                                                class="bg-slate-700 hover:bg-slate-600 rounded p-2 text-center transition-colors cursor-pointer {sortBy === 'talentShot' ? 'ring-2 ring-orange-400' : ''}"
-                                        >
-                                            <div class="text-orange-400 text-xs">⚔️ ATK</div>
-                                            <div class="text-white font-semibold">{stats.attack}</div>
-                                        </button>
-                                        <button
-                                                class="bg-slate-700 hover:bg-slate-600 rounded p-2 text-center transition-colors cursor-pointer {sortBy === 'talentDefense' ? 'ring-2 ring-blue-400' : ''}"
-                                        >
-                                            <div class="text-blue-400 text-xs">🛡️ DEF</div>
-                                            <div class="text-white font-semibold">{stats.defense}</div>
-                                        </button>
+                                    <div class="bg-slate-700 hover:bg-slate-600 rounded p-2 text-center transition-colors cursor-pointer">
+                                        <div class="text-orange-400 text-xs">⚔️ ATK</div>
+                                        <div class="text-white font-semibold">{stats.attack}</div>
+                                    </div>
+                                    <div class="bg-slate-700 hover:bg-slate-600 rounded p-2 text-center transition-colors cursor-pointer">
+                                        <div class="text-blue-400 text-xs">🛡️ DEF</div>
+                                        <div class="text-white font-semibold">{stats.defense}</div>
+                                    </div>
+                                    <div class="bg-slate-700 hover:bg-slate-600 rounded p-2 text-center transition-colors cursor-pointer">
+                                        <div class="text-yellow-400 text-xs">🔨 CRAFT</div>
+                                        <div class="text-white font-semibold">{stats.craftSpeed || 100}</div>
+                                    </div>
                                 </div>
                             </div>
                             {/if}
@@ -998,21 +1009,12 @@
 							{/if}
 
 							<!-- Stats -->
-							<div class="grid grid-cols-2 gap-3 pt-3 border-t border-slate-700">
-								<div class="text-center {sortBy === 'friendshipPoint' ? 'ring-2 ring-pink-400 rounded p-1' : ''}">
-									<div class="text-slate-400 text-xs uppercase tracking-wide flex items-center justify-center space-x-1">
-										<img src="/T_Icon_PalFriendship_Color.png" alt="Friendship" class="w-3 h-3" />
-										<span>Friendship</span>
-									</div>
-									<div class="text-pink-400 font-bold">{pal.friendshipPoint || 0}</div>
+							{#if pal.ownedTime}
+								<div class="text-center pt-3 border-t border-slate-700 {sortBy === 'ownedTime' ? 'ring-2 ring-green-400 rounded p-1' : ''}">
+									<div class="text-slate-400 text-xs uppercase tracking-wide">Owned</div>
+									<div class="text-green-400 font-bold text-xs">{formatDate(pal.ownedTime)}</div>
 								</div>
-								{#if pal.ownedTime}
-									<div class="text-center {sortBy === 'ownedTime' ? 'ring-2 ring-green-400 rounded p-1' : ''}">
-										<div class="text-slate-400 text-xs uppercase tracking-wide">Owned</div>
-										<div class="text-green-400 font-bold text-xs">{formatDate(pal.ownedTime)}</div>
-									</div>
-								{/if}
-							</div>
+							{/if}
 						</div>
 					{/each}
 				</div>

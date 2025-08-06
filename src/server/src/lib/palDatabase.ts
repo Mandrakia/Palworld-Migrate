@@ -1,5 +1,5 @@
-import palsData from './pals.json';
-import passives from './pal_passives.json';
+import palsData from '../../../databases/pals.json';
+import passives from '../../../databases/pal_passives.json';
 
 export interface PalPassiveSkill {
     InternalName: string;

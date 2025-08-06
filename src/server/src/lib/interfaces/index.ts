@@ -1,5 +1,7 @@
 // Central export point for all interfaces
-
+export type {
+    FriendshipRank
+} from './friendship-rank';
 // Common types
 export type {
 	Point,

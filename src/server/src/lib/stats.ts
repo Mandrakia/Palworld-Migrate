@@ -95,12 +95,12 @@ export function GetPalStats(
 	);
 
 	// Work speed: (CraftSpeed + Friendship_CraftSpeed * Trust) * PassiveMultipliers
-	const workSpeed = Math.floor(trust_modified_craftspeed * craftSpeedMultiplier);
+	const craftSpeed = 70 * craftSpeedMultiplier;
 
 	return {
 		hp,
 		attack,
 		defense,
-		workSpeed
+        craftSpeed
 	};
 }

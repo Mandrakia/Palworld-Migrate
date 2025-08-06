@@ -5,6 +5,8 @@ import type {ServerSave} from "$save-edit/models/ServerSave";
 import type {CharacterSave} from "$save-edit/models/CharacterSave";
 import {getPalData, cleanElementType, cleanSizeType, cleanTribe, Buff, getPassive} from "$lib/palDatabase";
 import type {Guild} from "$save-edit/models/Guild";
+import friendshipData from "../../../databases/friendship_ranks.json";
+import type {FriendshipRank} from "$lib/interfaces/";
 
 export function toPlayerCard(pWorld: Player, pSave: CharacterSave, serverSave: ServerSave) : PlayerCardData{
     const pals = serverSave.Characters.filter(a => a instanceof Pal) as Pal[];
@@ -21,6 +23,21 @@ export function toPlayerCard(pWorld: Player, pSave: CharacterSave, serverSave: S
         palCount: palCount, // Would need to count owned pals from somewhere else
         gold: 0     // Would need to extract from inventory
     };
+}
+
+function GetFriendShipRank(friendshipPoints: number): number {
+    const friendshipLevels = friendshipData as FriendshipRank[];
+    let rank = friendshipLevels[0].RankLevel;
+
+    for (const entry of friendshipLevels) {
+        if (friendshipPoints >= entry.RequiredFriendship) {
+            rank = entry.RankLevel;
+        } else {
+            break;
+        }
+    }
+
+    return rank;
 }
 
 export function toPalCard(pWorld: Pal, serverSave: ServerSave, isCamp: boolean = false) : PalCardData{
@@ -67,6 +84,7 @@ export function toPalCard(pWorld: Pal, serverSave: ServerSave, isCamp: boolean =
         addedStats: pWorld.AddedStats,
         gender: pWorld.Gender || 'unknown',
         friendshipPoint: pWorld.FriendshipPoint,
+        friendshipRank: GetFriendShipRank(pWorld.FriendshipPoint),
         ownedTime: pWorld.OwnedTime,
         talentDefense: pWorld.TalentDefense,
         talentShot: pWorld.TalentShot,

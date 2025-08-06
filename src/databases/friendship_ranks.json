@@ -1,0 +1,58 @@
+[
+  {
+    "RankLevel": -3,
+    "RequiredFriendship": -10000
+  },
+  {
+    "RankLevel": -2,
+    "RequiredFriendship": -1000
+  },
+  {
+    "RankLevel": -1,
+    "RequiredFriendship": -1
+  },
+  {
+    "RankLevel": 0,
+    "RequiredFriendship": 0
+  },
+  {
+    "RankLevel": 1,
+    "RequiredFriendship": 6000
+  },
+  {
+    "RankLevel": 2,
+    "RequiredFriendship": 13000
+  },
+  {
+    "RankLevel": 3,
+    "RequiredFriendship": 21000
+  },
+  {
+    "RankLevel": 4,
+    "RequiredFriendship": 30000
+  },
+  {
+    "RankLevel": 5,
+    "RequiredFriendship": 40000
+  },
+  {
+    "RankLevel": 6,
+    "RequiredFriendship": 55000
+  },
+  {
+    "RankLevel": 7,
+    "RequiredFriendship": 80000
+  },
+  {
+    "RankLevel": 8,
+    "RequiredFriendship": 110000
+  },
+  {
+    "RankLevel": 9,
+    "RequiredFriendship": 150000
+  },
+  {
+    "RankLevel": 10,
+    "RequiredFriendship": 200000
+  }
+]

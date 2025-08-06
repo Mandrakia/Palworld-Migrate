@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import {Pal} from "$save-edit/models/Pal";
-import rawDungeons from "$lib/dungeons.json";
+import rawDungeons from "../../../../../../../databases/dungeons.json";
 import type {Dungeon} from "$lib";
 import type {DungeonSaveData} from "$save-edit/models/DungeonSaveData";
 import {toRealTime} from "$lib/palDatabase";
