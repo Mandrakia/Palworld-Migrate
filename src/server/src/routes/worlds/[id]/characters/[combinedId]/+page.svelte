@@ -200,16 +200,16 @@
 					valueB = b.talentDefense || 0;
 					break;
                 case 'attack':
-                    valueA = a.endStats.attack;
-                    valueB = b.endStats.attack;
+                    valueA = a.endStats?.attack|| 0;
+                    valueB = b.endStats?.attack|| 0;
                     break;
                 case 'defense':
-                    valueA = a.endStats.defense;
-                    valueB = b.endStats.defense;
+                    valueA = a.endStats?.defense|| 0;
+                    valueB = b.endStats?.defense|| 0;
                     break;
                 case 'hp':
-                    valueA = a.endStats.hp;
-                    valueB = b.endStats.hp;
+                    valueA = a.endStats?.hp|| 0;
+                    valueB = b.endStats?.hp|| 0;
                     break;
 				default:
 					return 0;
