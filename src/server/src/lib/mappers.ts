@@ -78,8 +78,8 @@ export function toPalCard(pWorld: Pal, serverSave: ServerSave, isCamp: boolean =
 
 
     return {
-        currentStats : palData ? GetPalStats(cleanTribe(palData.Tribe), pWorld.TalentHP, pWorld.TalentShot, pWorld.TalentDefense, displayedPassives, pWorld.Level || 1, GetFriendShipRank(pWorld.FriendshipPoint)) : undefined,
-        endStats : palData ? GetPalStats(cleanTribe(palData.Tribe), pWorld.TalentHP, pWorld.TalentShot, pWorld.TalentDefense, displayedPassives,50, 10) : undefined,
+        currentStats : palData ? GetPalStats(cleanTribe(palData.Tribe), pWorld.TalentHP || 0, pWorld.TalentShot || 0, pWorld.TalentDefense || 0, displayedPassives, pWorld.Level || 1, GetFriendShipRank(pWorld.FriendshipPoint)) : undefined,
+        endStats : palData ? GetPalStats(cleanTribe(palData.Tribe), pWorld.TalentHP || 0, pWorld.TalentShot || 0, pWorld.TalentDefense || 0, displayedPassives,50, 10) : undefined,
         characterId: cleanCharacterId,
         isInCamp : isCamp,
         type: "pal",
@@ -93,9 +93,9 @@ export function toPalCard(pWorld: Pal, serverSave: ServerSave, isCamp: boolean =
         friendshipPoint: pWorld.FriendshipPoint,
         friendshipRank: GetFriendShipRank(pWorld.FriendshipPoint),
         ownedTime: pWorld.OwnedTime,
-        talentDefense: pWorld.TalentDefense,
-        talentShot: pWorld.TalentShot,
-        talentHP: pWorld.TalentHP,
+        talentDefense: pWorld.TalentDefense || 0,
+        talentShot: pWorld.TalentShot || 0,
+        talentHP: pWorld.TalentHP || 0,
         ownerPlayerId: pWorld.PlayerId || 'unknown',
         equipWaza: pWorld.EquipWaza,
         passiveSkills: displayedPassives,
