@@ -1,5 +1,12 @@
 {
-  "savePath": ["/home/jpgire/palworld-saves/0", "/home/jpgire/palworld-backups/0"],
+  "savePath": [
+    {
+      "directory": "/home/jpgire/palworld-saves/0"
+    },
+    {
+      "directory": "/home/jpgire/palworld-backups/0"
+    }
+  ],
   "metaPath": "src/save-edit/generation/character_meta.ts",
   "server": {
     "host": "localhost",

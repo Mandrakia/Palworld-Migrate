@@ -3,6 +3,7 @@
     import { normalizeToTopLeft} from '$lib/map_utils';
     import type { DungeonWithState } from '$lib/types';
     import type { PageData } from './$types';
+	import { mapFilters } from '$lib/stores/mapFilters';
 
     interface CampDTO{
         Coords: { x: number; y: number };
@@ -16,6 +17,7 @@
     let { data }: Props = $props();
 	let camps: CampDTO[] = $state(data.camps);
 	let dungeons: DungeonWithState[] = $state(data.dungeons);
+	let players = $state(data.players);
 	let mapElement: HTMLImageElement;
 	let containerElement: HTMLDivElement;
 	
@@ -33,17 +35,19 @@
 	let offsetY = $state(-1560);
 	let coordScale = $state(1.276);
 	
-	// Filter states
-	let showCamps = $state(true);
-	let showDungeons = $state(true);
-	let showActiveDungeons = $state(true);
-	let showInactiveDungeons = $state(true);
+	// Use store for filter states
+	let showPlayers = $derived($mapFilters.showPlayers);
+	let showCamps = $derived($mapFilters.showCamps);
+	let showDungeons = $derived($mapFilters.showDungeons);
+	let showActiveDungeons = $derived($mapFilters.showActiveDungeons);
+	let showInactiveDungeons = $derived($mapFilters.showInactiveDungeons);
 
 	// Tooltip state
 	let tooltipVisible = $state(false);
 	let tooltipX = $state(0);
 	let tooltipY = $state(0);
 	let tooltipDungeon = $state(null);
+	let tooltipPlayer = $state(null);
 
 	onMount(() => {
 		// Set initial center position to game coords -210000, +165000
@@ -106,11 +110,13 @@
 
 	let campPositions = $state([]);
 	let dungeonPositions = $state([]);
+	let playerPositions = $state([]);
 
 	function calculateMapPositions() {
 		if (!mapElement) {
 			campPositions = [];
 			dungeonPositions = [];
+			playerPositions = [];
 			return;
 		}
 		
@@ -153,14 +159,26 @@
 				return { ...dungeon, x, y };
 			});
 		}
+		
+		// Calculate player positions (only for online players with coordinates)
+		if (players.length > 0) {
+			playerPositions = players
+				.filter(player => player.isOnline && player.x !== undefined && player.y !== undefined)
+				.map(player => {
+					const paldexCoords = normalizeToTopLeft({ x: player.x, y: player.y });
+					const x = paldexCoords.x * baseWidth;
+					const y = paldexCoords.y * baseHeight;
+					return { ...player, x, y };
+				});
+		}
 	}
 
 	$effect(() => {
-		// Recalculate when camps/dungeons change or when calibration values change
+		// Recalculate when camps/dungeons/players change or when calibration values change
 		// Include offsetX, offsetY, coordScale in the effect to track changes
 		offsetX; offsetY; coordScale; // Access these to make effect reactive to them
 		
-		if ((camps.length > 0 || dungeons.length > 0) && mapElement) {
+		if ((camps.length > 0 || dungeons.length > 0 || players.length > 0) && mapElement) {
 			// Add small delay to ensure DOM is updated
 			setTimeout(calculateMapPositions, 0);
 		}
@@ -264,68 +282,43 @@
 	}
 
 	function showDungeonTooltip(event: MouseEvent, dungeon: any) {
-		const rect = containerElement.getBoundingClientRect();
-		tooltipX = event.clientX - rect.left + 10;
-		tooltipY = event.clientY - rect.top - 10;
+		// Use viewport-based positioning since tooltip is positioned absolutely
+		tooltipX = event.clientX + 10;
+		tooltipY = event.clientY - 10;
 		tooltipDungeon = dungeon;
+		tooltipPlayer = null;
 		tooltipVisible = true;
 	}
 
-	function hideDungeonTooltip() {
+	function showPlayerTooltip(event: MouseEvent, player: any) {
+		// Use viewport-based positioning since tooltip is positioned absolutely
+		tooltipX = event.clientX + 10;
+		tooltipY = event.clientY - 10;
+		tooltipPlayer = player;
+		tooltipDungeon = null;
+		tooltipVisible = true;
+	}
+
+	function hideTooltip() {
 		tooltipVisible = false;
 		tooltipDungeon = null;
+		tooltipPlayer = null;
 	}
 </script>
 
-<!-- Main Content Area with Left Panel -->
-<div class="h-full flex overflow-hidden">
-	<!-- Left Panel -->
-	<aside class="w-[350px] bg-slate-800 border-r border-slate-700 overflow-y-auto">
-		<div class="p-4">
-			<h2 class="text-lg font-semibold text-white mb-4">Map Filters</h2>
-			
-			<!-- Filter Controls -->
-			<div class="space-y-4">
-				<div class="space-y-3">
-					<label class="flex items-center space-x-3 text-white cursor-pointer hover:text-blue-300 transition-colors">
-						<input type="checkbox" bind:checked={showCamps} class="w-4 h-4 text-blue-600 bg-slate-700 border-slate-600 rounded focus:ring-blue-500 focus:ring-2" />
-						<span class="text-sm font-medium">Show Camps</span>
-					</label>
-					<label class="flex items-center space-x-3 text-white cursor-pointer hover:text-blue-300 transition-colors">
-						<input type="checkbox" bind:checked={showDungeons} class="w-4 h-4 text-blue-600 bg-slate-700 border-slate-600 rounded focus:ring-blue-500 focus:ring-2" />
-						<span class="text-sm font-medium">Show Dungeons</span>
-					</label>
-				</div>
-				
-				{#if showDungeons}
-					<div class="ml-6 space-y-2 border-l-2 border-slate-600 pl-4">
-						<label class="flex items-center space-x-3 text-slate-300 cursor-pointer hover:text-blue-300 transition-colors">
-							<input type="checkbox" bind:checked={showActiveDungeons} class="w-4 h-4 text-blue-600 bg-slate-700 border-slate-600 rounded focus:ring-blue-500 focus:ring-2" />
-							<span class="text-sm">Active Dungeons</span>
-						</label>
-						<label class="flex items-center space-x-3 text-slate-300 cursor-pointer hover:text-blue-300 transition-colors">
-							<input type="checkbox" bind:checked={showInactiveDungeons} class="w-4 h-4 text-blue-600 bg-slate-700 border-slate-600 rounded focus:ring-blue-500 focus:ring-2" />
-							<span class="text-sm">Inactive Dungeons</span>
-						</label>
-					</div>
-				{/if}
-			</div>
-		</div>
-	</aside>
-
-	<!-- Map Container -->
-	<div 
-		class="flex-1 map-container"
-		bind:this={containerElement}
-		onwheel={handleWheel}
-		onmousedown={handleMouseDown}
-		onmousemove={handleMouseMove}
-		onmouseup={handleMouseUp}
-		onmouseleave={handleMouseUp}
-		onkeydown={handleKeyDown}
-		role="application"
-		tabindex="0"
-	>
+<!-- Full Width Map Container -->
+<div 
+	class="h-full map-container"
+	bind:this={containerElement}
+	onwheel={handleWheel}
+	onmousedown={handleMouseDown}
+	onmousemove={handleMouseMove}
+	onmouseup={handleMouseUp}
+	onmouseleave={handleMouseUp}
+	onkeydown={handleKeyDown}
+	role="application"
+	tabindex="0"
+>
 	<div 
 		class="map-wrapper"
 		style="transform: translate({panX}px, {panY}px) scale({zoom}); transform-origin: 0 0;"
@@ -363,10 +356,29 @@
 						class:inactive={!dungeon.IsActive}
 						style="left: {dungeon.x}px; top: {dungeon.y}px; transform: translate(-50%, -50%) scale({1/zoom});"
 						onmouseenter={(e) => showDungeonTooltip(e, dungeon)}
-						onmouseleave={hideDungeonTooltip}
+						onmouseleave={hideTooltip}
 						draggable="false"
 					/>
 				{/if}
+			{/each}
+		{/if}
+		
+		<!-- Online Players -->
+		{#if showPlayers}
+			{#each playerPositions as player}
+				<div 
+					class="player-marker"
+					style="left: {player.x}px; top: {player.y}px; transform: translate(-50%, -50%) scale({1/zoom});"
+					onmouseenter={(e) => showPlayerTooltip(e, player)}
+					onmouseleave={hideTooltip}
+				>
+					<div class="player-icon">
+						<svg class="player-svg" viewBox="0 0 24 24" fill="currentColor">
+							<path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L18 4H17C15.9 4 15 4.9 15 6V10.5L12 12L9 10.5V6C9 4.9 8.1 4 7 4H6L3 7V9H5L6.5 7.5C6.5 8.66 6.5 9.33 6.5 12H17.5C17.5 9.33 17.5 8.66 17.5 7.5L19 9H21ZM12 13.5C10.1 13.5 8.5 15.1 8.5 17H15.5C15.5 15.1 13.9 13.5 12 13.5Z"/>
+						</svg>
+					</div>
+					<div class="player-name">{player.name}</div>
+				</div>
 			{/each}
 		{/if}
 		
@@ -407,7 +419,6 @@
 				</div>
 			</div>
 		{/if}
-	</div>
 </div>
 
 <style>
@@ -462,13 +473,51 @@
 		filter: drop-shadow(0 0 4px rgba(128, 128, 128, 0.8));
 		opacity: 0.7;
 	}
+	
+	.player-marker {
+		position: absolute;
+		z-index: 15;
+		pointer-events: auto;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
+	
+	.player-icon {
+		width: 24px;
+		height: 24px;
+		background: #3b82f6;
+		border: 2px solid #ffffff;
+		border-radius: 50%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.8));
+	}
+	
+	.player-svg {
+		width: 16px;
+		height: 16px;
+		color: white;
+	}
+	
+	.player-name {
+		margin-top: 2px;
+		padding: 1px 4px;
+		background: rgba(0, 0, 0, 0.7);
+		color: white;
+		font-size: 10px;
+		border-radius: 4px;
+		white-space: nowrap;
+		font-weight: 500;
+	}
 
 	.map-container:focus {
 		outline: none;
 	}
 
 	.dungeon-tooltip {
-		position: absolute;
+		position: fixed;
 		background: rgba(15, 23, 42, 0.95);
 		border: 1px solid #475569;
 		border-radius: 8px;

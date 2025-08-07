@@ -56,6 +56,7 @@ export type {
 // System types
 export type {
 	Settings,
+    ServerSettings,
 	WorldIdMapping,
 	PlayerFileCache,
 	ServerCache

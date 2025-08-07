@@ -21,7 +21,6 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
     
     // Get server data from cache
     const serverSave = saveWatcher.getServerSave(id);
-    const backups = saveWatcher.getBackups(id);
     
     if (!serverSave) {
       return error(404, `Server ${id} not found`);
@@ -65,11 +64,9 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
         id: id,
         timestamp: serverSave.Timestamp,
         playerCount: playerCards.length,
-        backupCount: backups.length,
         version: version
       },
       players: playerCards,
-      backups: backups
     });
     
   } catch (err) {

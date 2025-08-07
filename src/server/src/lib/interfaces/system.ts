@@ -1,25 +1,24 @@
 // System and configuration interfaces
 
-export interface Settings {
-	savePath: string[];
-	metaPath: string;
-	server: {
-		host: string;
-		port: number;
-		dev: boolean;
-		'allowed-domains'?: string[];
-	};
-	saveEdit: {
-		outputDir: string;
-		verbose: boolean;
-	};
+export interface ServerSettings {
+    directory: string;
+    rest_host? : string;
+    rest_protocol?: "http" | "https";
+    rest_password?: string;
 }
-
-export interface WorldIdMapping {
-	originalId: string;
-	uniqueId: string;
-	pathIndex: number;
-	savePath: string;
+export interface Settings {
+    worlds: ServerSettings[];
+    metaPath: string;
+    server: {
+        host: string;
+        port: number;
+        dev: boolean;
+        'allowed-domains'?: string[];
+    };
+    saveEdit: {
+        outputDir: string;
+        verbose: boolean;
+    };
 }
 
 export interface PlayerFileCache {

@@ -1,8 +1,14 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
+export interface ServerSettings {
+    directory: string;
+    "rest-host" : string;
+    "rest-protocol": "http" | "https";
+    "rest-password": string;
+}
 export interface Settings {
-  savePath: string[];
+  worlds: ServerSettings[];
   metaPath: string;
   server: {
     host: string;

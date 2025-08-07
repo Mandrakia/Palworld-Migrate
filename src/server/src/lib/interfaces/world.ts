@@ -2,19 +2,23 @@
 
 export interface World {
 	id: string;
-	name: string;
-	description: string;
-	created: string;
-	lastModified: string;
-	playerCount: number;
+	name?: string;
+	description?: string;
+	lastModified: Date;
 	palCount: number;
 }
 
 export interface Player {
 	id: string;
+  fileId: string;
 	name: string;
 	level: number;
-	lastSeen: string;
+	lastSeen?: Date;
+  isOnline?: boolean;
+  instanceId: string;
+  accountName?: string;
+  x?: number;
+  y?: number;
 }
 
 export interface WorldSettings {
@@ -25,7 +29,7 @@ export interface WorldSettings {
 
 export interface WorldDetail extends World {
 	players: Player[];
-	settings: WorldSettings;
+	settings?: WorldSettings;
 }
 
 export interface Dungeon {

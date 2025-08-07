@@ -46,7 +46,7 @@ function resolveServerPaths(uniqueId: string): { savePath: string; originalId: s
         const watcher = SaveFileWatcher.getInstance();
         const mapping = watcher.getWorldMapping(uniqueId);
         if (mapping) {
-            return { savePath: mapping.savePath, originalId: mapping.originalId };
+            return { savePath: mapping.settings.directory, originalId: mapping.originalId };
         }
     } catch (error) {
         console.warn('SaveFileWatcher not available, using fallback logic');
@@ -57,17 +57,17 @@ function resolveServerPaths(uniqueId: string): { savePath: string; originalId: s
     if (match) {
         const [, originalId, pathIndexStr] = match;
         const pathIndex = parseInt(pathIndexStr);
-        const savePaths = environment.savePaths;
+        const savePaths = environment.worldSettings;
         const savePath = savePaths[pathIndex];
         if (savePath) {
-            return { savePath, originalId };
+            return { savePath: savePath.directory, originalId };
         }
     }
 
     // Fallback: assume it's an original ID and use first save path
-    const savePaths = environment.savePaths;
+    const savePaths = environment.worldSettings;
     if (savePaths.length > 0) {
-        return { savePath: savePaths[0], originalId: uniqueId };
+        return { savePath: savePaths[0].directory, originalId: uniqueId };
     }
 
     return null;

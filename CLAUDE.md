@@ -4,47 +4,50 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Palworld save file edition tool that allows modifying characters, pals, items, worlds as well as transferring characters between servers. The project uses TypeScript with a code generation system to create type-safe wrappers around Palworld's JSON save data structure.
+This is a Palworld toolkit, for reading a dedicated server state and displaying information about the different entities in a SvelteKit frontend.
 
 ## Development Commands
 
-### Save Editor (src/save-edit)
-- **Run TypeScript code**: `npx tsx src/save-edit/<file.ts>` (using tsx for direct TypeScript execution)
-- **Compile TypeScript**: `cd src/save-edit && npx tsc` (outputs to `dist/` directory)
-- **Code generation**: `npx tsx src/save-edit/generation/Generator.ts <meta-file-path>` (generates model classes from schema definitions)
+### Generate mappings (Classes to json formatted .sav files)
+- `npm run meta`
 
-### Web Server (src/server)
-- **Development server**: `cd src/server && npm run dev`
-- **Build**: `cd src/server && npm run build`
-- **Preview**: `cd src/server && npm run preview`
+### Web Server
+- **Run dev mode with watch** : `npm run test-server`
 
 ## Architecture
 
-### Core Components
-
+### Sav file reading (src/save-edit)
 - **JsonWrapper**: Base class providing safe path navigation and manipulation of nested JSON structures. Includes utility methods for converting between .NET ticks and JavaScript Dates.
-
 - **Generated Models**: Type-safe classes auto-generated from schema definitions that extend JsonWrapper:
   - `CharacterSave`: Main character data wrapper
   - `Player`, `Pal`: Character type implementations  
   - `ServerSave`: Top-level save file wrapper
   - `ItemContainer`, `Slot`: Inventory management
 
-### Code Generation System
+#### Code Generation System
 
-The project uses a schema-driven approach located in `generation/`:
-
+The project uses a schema-driven approach located in `src/save-edit/generation/`:
+- **character_meta.ts**: Class mappings for .sav files (both player files and server files)
 - **schema.ts**: Defines interfaces for entity metadata, property definitions, and polymorphic type resolution
 - **Generator.ts**: Reads schema files and generates TypeScript model classes with:
   - Getter/setter properties with proper typing
   - Polymorphic factory classes for runtime type resolution
   - Automatic dependency resolution and imports
 
-### Key Patterns
+#### Key Patterns
 
 - **Path-based data access**: All data manipulation uses string array paths to navigate the JSON structure safely
 - **Polymorphic types**: Uses discriminator fields and factory classes to handle different character types (Player vs Pal)
 - **Immutable base data**: JsonWrapper preserves the original JSON structure while providing typed access
+
+### SvelteKit frontend (src/server)
+
+The web app is composed of a server/backend (SaveFileWatcher, Cache, API) and a frontend that loads those data by either SSR (+page.ts) or fetch calls.
+
+#### Monitor save directories
+
+- **src/lib/SaveFileWatcher.ts**: Monitors changes in save directories provided by the settings
+- **src/lib/loader.ts**: Handle the convertion from .sav to .json and the loading
 
 ## File Structure
 
@@ -55,7 +58,9 @@ The project uses a schema-driven approach located in `generation/`:
   - `test.ts`: Development testing script
 - `src/server/`: SvelteKit web application
 
-## Objective
+## Important code rules
 
-- Move the current code base in a sub folder : src/save-edit
-- create a web server project (svelte) in src/server
+- Do not duplicate code. If any piece of code you write might be later used elsewhere then write it in a separate exported function/class/interface/svelte component.
+- Try to Type everything (we use typescript so as much as possible everything should be typed, arguments, return types, lambda, variables etc)
+
+

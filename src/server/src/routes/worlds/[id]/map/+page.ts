@@ -10,13 +10,15 @@ export const load: PageLoad = async ({ params, fetch }) => {
     const worldId = params.id;
     
     try {
-        const [campsResponse, dungeonsResponse] = await Promise.all([
+        const [campsResponse, dungeonsResponse, worldsResponse] = await Promise.all([
             fetch(`/api/worlds/${worldId}/camps`),
-            fetch(`/api/worlds/${worldId}/dungeons`)
+            fetch(`/api/worlds/${worldId}/dungeons`),
+            fetch(`/api/worlds`)
         ]);
         
         let camps: CampDTO[] = [];
         let dungeons: DungeonWithState[] = [];
+        let players = [];
         
         if (campsResponse.ok) {
             camps = await campsResponse.json();
@@ -26,15 +28,23 @@ export const load: PageLoad = async ({ params, fetch }) => {
             dungeons = await dungeonsResponse.json();
         }
         
+        if (worldsResponse.ok) {
+            const worlds = await worldsResponse.json();
+            const currentWorld = worlds.find((world: any) => world.id === worldId);
+            players = currentWorld?.players || [];
+        }
+        
         return {
             camps,
-            dungeons
+            dungeons,
+            players
         };
     } catch (error) {
         console.error('Failed to load map data:', error);
         return {
             camps: [],
-            dungeons: []
+            dungeons: [],
+            players: []
         };
     }
 };

@@ -4,24 +4,21 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
+	import type { WorldDetail } from '$lib/interfaces';
 	
-	// Server and version state
-	let servers: Array<{Id: string, PlayerCount: number, Backups: string[]}> = [];
+	// Server state
+	let servers: WorldDetail[] = [];
 	let selectedServer: string = '';
-	let selectedVersion: string = 'Live';
 	let serverDropdownOpen = false;
-	let versionDropdownOpen = false;
 	
 	
-	$: currentServerData = servers.find(s => s.Id === selectedServer);
-	$: availableVersions = currentServerData ? ['Live', ...currentServerData.Backups] : ['Live'];
-	$: playerCount = currentServerData?.PlayerCount || 0;
+	$: currentServerData = servers.find(s => s.id === selectedServer);
+	$: playerCount = currentServerData?.players.length || 0;
+	$: onlinePlayerCount = currentServerData?.players.filter(p => p.isOnline).length || 0;
 	
-	// React to route changes to sync dropdowns with URL
+	// React to route changes to sync dropdown with URL
 	$: if ($page.params.id) {
 		selectedServer = $page.params.id;
-		const versionParam = $page.url.searchParams.get('version');
-		selectedVersion = versionParam || 'Live';
 	}
 	
 	onMount(async () => {
@@ -44,52 +41,16 @@
 	
 	function selectServer(serverId: string) {
 		selectedServer = serverId;
-		selectedVersion = 'Live'; // Reset to Live when changing servers
 		serverDropdownOpen = false;
 		
 		// Save to localStorage and redirect
 		if (browser) {
 			localStorage.setItem('worldId', serverId);
-			localStorage.setItem('worldVersion', 'Live');
 		}
 		goto(`/worlds/${serverId}`);
 	}
 	
-	function selectVersion(version: string) {
-		selectedVersion = version;
-		versionDropdownOpen = false;
-		
-		// Save to localStorage and redirect
-		if (browser) {
-			localStorage.setItem('worldVersion', version);
-			if (selectedServer) {
-				localStorage.setItem('worldId', selectedServer);
-			}
-		}
-		
-		if (selectedServer) {
-			const url = version === 'Live' 
-				? `/worlds/${selectedServer}` 
-				: `/worlds/${selectedServer}?version=${encodeURIComponent(version)}`;
-			goto(url);
-		}
-	}
-	
-	
-	function formatDateTime(dateTimeString: string): string {
-		if (dateTimeString === 'Live') return dateTimeString;
-		
-		// Parse yyyy.MM.dd-HH.mm.ss format
-		const parts = dateTimeString.split('-');
-		if (parts.length !== 2) return dateTimeString;
-		
-		const datePart = parts[0].replace(/\./g, '/'); // yyyy/MM/dd
-		const timePart = parts[1].replace(/\./g, ':'); // HH:mm:ss
-		
-		return `${datePart} ${timePart}`;
-	}
-	
-	// Close dropdowns when clicking outside
+	// Close dropdown when clicking outside
 	function handleClickOutside(event: MouseEvent) {
 		const target = event.target as Element;
 		
@@ -97,12 +58,6 @@
 		const serverDropdown = document.querySelector('.server-dropdown');
 		if (serverDropdown && !serverDropdown.contains(target)) {
 			serverDropdownOpen = false;
-		}
-		
-		// Check if click is outside version dropdown
-		const versionDropdown = document.querySelector('.version-dropdown');
-		if (versionDropdown && !versionDropdown.contains(target)) {
-			versionDropdownOpen = false;
 		}
 	}
 </script>
@@ -120,7 +75,7 @@
 					<h1 class="text-xl font-bold text-white">Palworld Save Editor</h1>
 				</div>
 				
-				<!-- Right side: Dropdowns and Player count -->
+				<!-- Right side: Server dropdown and Player count -->
 				<div class="flex items-center space-x-6">
 					<!-- Server Dropdown -->
 					<div class="relative server-dropdown">
@@ -129,9 +84,9 @@
 							class="flex items-center space-x-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white text-sm font-medium transition-colors duration-200"
 						>
 							<svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12l4-4m-4 4l4 4"></path>
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728m-9.9-2.829a5 5 0 010-7.07m7.072 0a5 5 0 010 7.07M13 12a1 1 0 11-2 0 1 1 0 012 0z"></path>
 							</svg>
-							<span class="truncate max-w-[200px]">{selectedServer || 'Select Server'}</span>
+							<span class="truncate max-w-[200px]">{currentServerData?.name || selectedServer || 'Select Server'}</span>
 							<svg class="w-4 h-4 text-slate-400 transition-transform duration-200 {serverDropdownOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
 							</svg>
@@ -141,69 +96,17 @@
 							<div class="absolute top-full right-0 mt-1 w-80 bg-slate-700 border border-slate-600 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto custom-scrollbar">
 								{#each servers as server}
 									<button
-										onclick={() => selectServer(server.Id)}
+										onclick={() => selectServer(server.id)}
 										class="w-full px-4 py-3 text-left hover:bg-slate-600 transition-colors duration-150 border-b border-slate-600 last:border-b-0"
 									>
 										<div class="flex items-center justify-between">
 											<div class="min-w-0 flex-1">
-												<div class="text-white font-medium font-mono text-sm truncate">{server.Id}</div>
-												<div class="text-slate-400 text-xs">{server.PlayerCount} players • {server.Backups.length} backups</div>
+												<div class="text-white font-medium text-sm truncate">{server.name || server.id}</div>
+												<div class="text-slate-400 text-xs">
+													{server.players.filter(p => p.isOnline).length}/{server.players.length} online • {server.palCount} pals
+												</div>
 											</div>
-											{#if selectedServer === server.Id}
-												<svg class="w-4 h-4 text-blue-400 ml-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-													<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-												</svg>
-											{/if}
-										</div>
-									</button>
-								{/each}
-							</div>
-						{/if}
-					</div>
-					
-					<!-- Version Dropdown -->
-					<div class="relative version-dropdown">
-						<button 
-							onclick={() => versionDropdownOpen = !versionDropdownOpen}
-							class="flex items-center space-x-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white text-sm font-medium transition-colors duration-200"
-							disabled={!selectedServer}
-						>
-							<svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-							</svg>
-							<span class="flex items-center space-x-2">
-								{#if selectedVersion === 'Live'}
-									<span class="w-2 h-2 bg-green-400 rounded-full"></span>
-								{:else}
-									<span class="w-2 h-2 bg-yellow-400 rounded-full"></span>
-								{/if}
-								<span class="truncate max-w-[120px]">{formatDateTime(selectedVersion)}</span>
-							</span>
-							<svg class="w-4 h-4 text-slate-400 transition-transform duration-200 {versionDropdownOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-							</svg>
-						</button>
-						
-						{#if versionDropdownOpen && selectedServer}
-							<div class="absolute top-full right-0 mt-1 w-80 bg-slate-700 border border-slate-600 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto custom-scrollbar">
-								{#each availableVersions as version}
-									<button
-										onclick={() => selectVersion(version)}
-										class="w-full px-4 py-3 text-left hover:bg-slate-600 transition-colors duration-150 border-b border-slate-600 last:border-b-0"
-									>
-										<div class="flex items-center justify-between">
-											<div class="flex items-center space-x-3 min-w-0 flex-1">
-												{#if version === 'Live'}
-													<span class="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
-													<span class="text-white font-medium">Live</span>
-													<span class="px-2 py-1 bg-green-600 text-green-100 text-xs rounded flex-shrink-0">Current</span>
-												{:else}
-													<span class="w-2 h-2 bg-yellow-400 rounded-full flex-shrink-0"></span>
-													<span class="text-white font-mono text-sm truncate">{formatDateTime(version)}</span>
-													<span class="px-2 py-1 bg-slate-600 text-slate-300 text-xs rounded flex-shrink-0">Backup</span>
-												{/if}
-											</div>
-											{#if selectedVersion === version}
+											{#if selectedServer === server.id}
 												<svg class="w-4 h-4 text-blue-400 ml-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
 													<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
 												</svg>
@@ -216,10 +119,18 @@
 					</div>
 					
 					<!-- Player count -->
-					<div class="flex items-center">
-						<span class="text-sm text-slate-300">Players:</span>
-						<span class="ml-2 px-3 py-1 bg-blue-600 text-blue-100 text-sm font-semibold rounded-lg">{playerCount}</span>
-					</div>
+					{#if currentServerData}
+						<div class="flex items-center space-x-4">
+							<div class="flex items-center space-x-2">
+								<span class="text-sm text-slate-300">Online:</span>
+								<span class="px-2 py-1 bg-green-600 text-green-100 text-sm font-semibold rounded">{onlinePlayerCount}</span>
+							</div>
+							<div class="flex items-center space-x-2">
+								<span class="text-sm text-slate-300">Total:</span>
+								<span class="px-2 py-1 bg-blue-600 text-blue-100 text-sm font-semibold rounded">{playerCount}</span>
+							</div>
+						</div>
+					{/if}
 				</div>
 			</div>
 		</div>

@@ -1,5 +1,7 @@
 import { env } from '$env/dynamic/private';
 import { getSetting } from './settings';
+import type { ServerSettings } from './interfaces'
+
 
 class Environment {
     private static instance: Environment;
@@ -13,10 +15,10 @@ class Environment {
         return Environment.instance;
     }
     
-    get savePaths(): string[] {
+    get worldSettings(): ServerSettings[] {
         // Try settings first, then fall back to environment variable for backward compatibility
         try {
-            const settingsPaths = getSetting('savePath');
+            const settingsPaths = getSetting('worlds');
             if (settingsPaths && Array.isArray(settingsPaths)) {
                 return settingsPaths;
             }
@@ -28,24 +30,9 @@ class Environment {
         if (!path) {
             throw new Error('savePath not found in settings.json and SAVE_PATH environment variable is not set');
         }
-        return [path]; // Convert single path to array for backward compatibility
-    }
-
-    // Backward compatibility
-    get savePath(): string {
-        const paths = this.savePaths;
-        return paths[0]; // Return first path for backward compatibility
-    }
-
-    // Helper methods for multi-path handling
-    getPathIndex(savePath: string): number {
-        const paths = this.savePaths;
-        return paths.indexOf(savePath);
-    }
-
-    getPathByIndex(index: number): string | null {
-        const paths = this.savePaths;
-        return paths[index] || null;
+        return [{
+          directory : path
+        }]; // Convert single path to array for backward compatibility
     }
     
     get serverConfig() {
