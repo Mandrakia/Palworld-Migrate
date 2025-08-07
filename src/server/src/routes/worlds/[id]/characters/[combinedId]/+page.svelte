@@ -150,7 +150,7 @@
 			// Name search filter
 			if (nameSearch.trim()) {
 				const searchTerm = nameSearch.toLowerCase().trim();
-				const palName = (pal.displayName || pal.name || '').toLowerCase();
+				const palName = (pal.name || '').toLowerCase();
 				if (!palName.includes(searchTerm)) return false;
 			}
 
