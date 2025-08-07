@@ -177,7 +177,7 @@
 			bind:this={inputElement}
 			bind:value={searchTerm}
 			{placeholder}
-			class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 pr-10 text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none"
+			class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 sm:px-4 py-2 pr-8 sm:pr-10 text-sm sm:text-base text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none"
 			oninput={handleInput}
 			onkeydown={handleKeydown}
 			onfocus={handleFocus}
@@ -204,7 +204,7 @@
 	{#if isOpen && !loading}
 		<div 
 			bind:this={dropdownElement}
-			class="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-lg max-h-96 overflow-y-auto"
+			class="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-lg max-h-80 sm:max-h-96 overflow-y-auto"
 		>
 			{#if filteredCharacters.length === 0}
 				<div class="px-4 py-3 text-slate-400 text-center">
@@ -213,7 +213,7 @@
 			{:else}
 				{#each filteredCharacters as character, index}
 					<button
-						class="w-full text-left px-4 py-3 hover:bg-slate-700 focus:bg-slate-700 transition-colors {selectedIndex === index ? 'bg-slate-700' : ''}"
+						class="w-full text-left px-3 sm:px-4 py-2 sm:py-3 hover:bg-slate-700 focus:bg-slate-700 transition-colors {selectedIndex === index ? 'bg-slate-700' : ''}"
 						onclick={() => selectCharacter(character)}
 					>
 						<!-- Character Mini Card -->

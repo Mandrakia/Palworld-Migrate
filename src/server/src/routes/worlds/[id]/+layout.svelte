@@ -14,6 +14,7 @@
 	
 	// Navigation state
 	let charactersExpanded = true;
+	let sidebarOpen = false;
 	
 	// Helper function to check if a path is active
 	function isActive(path: string): boolean {
@@ -24,14 +25,17 @@
 	function navigateToPlayer(player: CharacterCardData): void {
 		const combinedId = combineGuids(player.id, player.instanceId);
 		goto(`/worlds/${serverId}/characters/${combinedId}`);
+		closeSidebar(); // Close mobile sidebar after navigation
 	}
 	
 	function navigateToMap(): void {
 		goto(`/worlds/${serverId}/map`);
+		closeSidebar(); // Close mobile sidebar after navigation
 	}
 	
 	function navigateToAdmin(): void {
 		goto(`/worlds/${serverId}/admin`);
+		closeSidebar(); // Close mobile sidebar after navigation
 	}
 	
 	function combineGuids(guid1: string, guid2: string): string {
@@ -40,12 +44,53 @@
 		const combined = BigInt('0x' + hex1 + hex2);
 		return combined.toString(36);
 	}
+	
+	function toggleSidebar(): void {
+		sidebarOpen = !sidebarOpen;
+	}
+	
+	function closeSidebar(): void {
+		sidebarOpen = false;
+	}
 </script>
 
-<div class="flex h-full">
+<div class="flex h-full relative">
+	<!-- Mobile Menu Button -->
+	<button
+		class="lg:hidden fixed top-4 left-4 z-50 p-2 bg-slate-800 text-white rounded-lg shadow-lg border border-slate-600 hover:bg-slate-700 transition-colors"
+		on:click={toggleSidebar}
+		aria-label="Toggle navigation menu"
+	>
+		<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+		</svg>
+	</button>
+
+	<!-- Overlay for mobile -->
+	{#if sidebarOpen}
+		<div 
+			class="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
+			on:click={closeSidebar}
+			role="button"
+			tabindex="-1"
+			aria-label="Close sidebar"
+		></div>
+	{/if}
+
 	<!-- Left Navigation Sidebar -->
-	<nav class="w-80 bg-slate-800 border-r border-slate-700 flex-shrink-0 overflow-y-auto">
-		<div class="p-4">
+	<nav class="
+		{sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+		lg:translate-x-0
+		fixed lg:relative
+		z-40 lg:z-auto
+		w-80 lg:w-80
+		h-full
+		bg-slate-800 border-r border-slate-700 
+		flex-shrink-0 overflow-y-auto
+		transition-transform duration-300 ease-in-out
+		lg:transition-none
+	">
+		<div class="p-3 sm:p-4 pt-16 lg:pt-4">
 			
 			<!-- Navigation Sections -->
 			<div class="space-y-2">
@@ -161,13 +206,13 @@
 	</nav>
 	
 	<!-- Main Content Area -->
-	<main class="flex-1 overflow-y-auto bg-slate-900">
+	<main class="flex-1 overflow-y-auto bg-slate-900 lg:ml-0">
 		{#if isMapPage}
 			<!-- Map page gets full height without padding -->
 			<slot />
 		{:else}
-			<!-- Other pages get normal padding -->
-			<div class="p-6">
+			<!-- Other pages get responsive padding -->
+			<div class="p-4 sm:p-6 pt-16 lg:pt-6">
 				<slot />
 			</div>
 		{/if}

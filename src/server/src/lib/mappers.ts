@@ -6,7 +6,7 @@ import type {CharacterSave} from "$save-edit/models/CharacterSave";
 import {getPalData, cleanElementType, cleanSizeType, cleanTribe, Buff, getPassive} from "$lib/palDatabase";
 import type {Guild} from "$save-edit/models/Guild";
 import friendshipData from "../../../databases/friendship_ranks.json";
-import type {FriendshipRank} from "$lib/interfaces/";
+import type {FriendshipRank, PassiveSkill} from "$lib/interfaces/";
 
 export function toPlayerCard(pWorld: Player, pSave: CharacterSave, serverSave: ServerSave) : PlayerCardData{
     const pals = serverSave.Characters.filter(a => a instanceof Pal) as Pal[];
@@ -40,6 +40,10 @@ function GetFriendShipRank(friendshipPoints: number): number {
     return rank;
 }
 
+export function getDisplayedPassive(passive: string): PassiveSkill {
+  let passStat = getPassive(passive);
+  return {...passStat.I18n["fr"], Rating: passStat.Rating, Id: passive}
+}
 export function toPalCard(pWorld: Pal, serverSave: ServerSave, isCamp: boolean = false) : PalCardData{
     // Check if it's a boss character and clean the ID
     const originalCharacterId = pWorld.CharacterId;

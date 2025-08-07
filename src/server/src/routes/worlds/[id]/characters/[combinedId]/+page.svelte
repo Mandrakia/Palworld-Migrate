@@ -404,41 +404,40 @@
 <div class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" onclick={handleClickOutside}>
 	<!-- Header -->
 	<div class="bg-slate-800/50 backdrop-blur-sm border-b border-slate-700">
-		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-			<div class="flex items-center justify-between">
-				<div class="flex items-center justify-between w-full">
-					<div class="flex items-center space-x-4">
-						<button
-							onclick={goBackToWorld}
-							class="flex items-center space-x-2 text-slate-400 hover:text-white transition-colors"
-						>
-							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-							</svg>
-							<span>Back to World</span>
-						</button>
-						<div class="text-slate-500">•</div>
-						<h1 class="text-2xl font-bold text-white">Character Details</h1>
-					</div>
-					<div class="flex items-center space-x-4">
-						<a
-							href="/worlds/{data.worldId}/characters/{data.combinedId}/breeding"
-							class="flex items-center space-x-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
-						>
-							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-							</svg>
-							<span>Breeding Calculator</span>
-						</a>
-					</div>
+		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+			<div class="flex items-center justify-between flex-col sm:flex-row space-y-4 sm:space-y-0">
+				<div class="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto">
+					<button
+						onclick={goBackToWorld}
+						class="flex items-center space-x-2 text-slate-400 hover:text-white transition-colors"
+					>
+						<svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+						</svg>
+						<span class="text-sm sm:text-base">Back</span>
+					</button>
+					<div class="text-slate-500 hidden sm:block">•</div>
+					<h1 class="text-lg sm:text-2xl font-bold text-white">Character Details</h1>
+				</div>
+				<div class="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto">
+					<a
+						href="/worlds/{data.worldId}/characters/{data.combinedId}/breeding"
+						class="flex items-center space-x-2 px-3 sm:px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-sm sm:text-base w-full sm:w-auto justify-center"
+					>
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+						</svg>
+						<span class="hidden sm:inline">Breeding Calculator</span>
+						<span class="sm:hidden">Breeding</span>
+					</a>
 				</div>
 			</div>
 		</div>
 	</div>
 
-	<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+	<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
 		<!-- Player Card -->
-		<div class="mb-8">
+		<div class="mb-6 sm:mb-8">
 			<PlayerCard character={data.characterData} />
 		</div>
 
@@ -454,14 +453,14 @@
 					</div>
 
 					<!-- Sort & Filter Controls -->
-					<div class="bg-slate-800 border border-slate-700 rounded-lg p-4 space-y-4">
+					<div class="bg-slate-800 border border-slate-700 rounded-lg p-3 sm:p-4 space-y-4">
 						<!-- Sort Controls -->
-						<div class="flex flex-wrap items-center gap-4">
+						<div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
 							<div class="flex items-center space-x-2">
-								<label class="text-sm text-slate-400">Sort by:</label>
+								<label class="text-xs sm:text-sm text-slate-400">Sort by:</label>
 								<select 
 									bind:value={sortBy}
-									class="bg-slate-700 border border-slate-600 rounded px-3 py-1 text-sm text-white focus:border-slate-500 focus:outline-none"
+									class="bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs sm:text-sm text-white focus:border-slate-500 focus:outline-none flex-1 sm:flex-none"
 								>
 									<option value="ownedTime">Date Acquired</option>
 									<option value="friendshipRank">Friendship Rank</option>
@@ -476,10 +475,11 @@
 							<div class="flex items-center space-x-2">
 								<button
 									onclick={() => sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'}
-									class="flex items-center space-x-1 px-3 py-1 bg-slate-700 border border-slate-600 rounded text-sm text-white hover:bg-slate-600 transition-colors"
+									class="flex items-center space-x-1 px-2 sm:px-3 py-1 bg-slate-700 border border-slate-600 rounded text-xs sm:text-sm text-white hover:bg-slate-600 transition-colors"
 								>
 									<span>{sortOrder === 'asc' ? '↑' : '↓'}</span>
-									<span>{sortOrder === 'asc' ? 'Ascending' : 'Descending'}</span>
+									<span class="hidden sm:inline">{sortOrder === 'asc' ? 'Ascending' : 'Descending'}</span>
+									<span class="sm:hidden">{sortOrder === 'asc' ? 'Asc' : 'Desc'}</span>
 								</button>
 							</div>
 						</div>
@@ -716,9 +716,9 @@
 
 				<!-- Pals Grid -->
 				{#if filteredAndSortedPals().length > 0}
-					<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+					<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
 						{#each filteredAndSortedPals() as pal}
-						<div class="bg-slate-800 border border-slate-700 rounded-lg p-6 hover:bg-slate-750 hover:border-slate-600 transition-colors duration-200">
+						<div class="bg-slate-800 border border-slate-700 rounded-lg p-4 sm:p-6 hover:bg-slate-750 hover:border-slate-600 transition-colors duration-200">
 							<!-- Pal Header -->
 							<div class="flex items-center justify-between mb-4">
 								<div class="flex items-center space-x-3">

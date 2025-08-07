@@ -2,68 +2,108 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { Pal } from "$save-edit/models/Pal";
 import type { PalCardData } from '$lib/CharacterCardData';
-import { getPlayerPals } from "$lib/mappers";
+import {getDisplayedPassive, getPlayerPals} from "$lib/mappers";
 import type { Player } from "$save-edit/models/Player";
 import { getPalData, getPassive, palDatabase } from "$lib/palDatabase";
 import type { BreedingPair, WorkSpeedRoute } from '$lib/interfaces/breeding';
 import { GetPalStats } from '$lib/stats';
 import type {PassiveSkill} from "$lib/interfaces";
+import {splitGuids} from "$lib/guidUtils";
+import { getBreedingResult } from "$lib/breedingUtils";
 
-function splitGuids(encoded: string): [string, string] {
-    let combined = 0n;
-    for (let i = 0; i < encoded.length; i++) {
-        const digit = encoded.charCodeAt(i);
-        const value = digit >= 48 && digit <= 57 ? digit - 48 : digit - 87;
-        combined = combined * 36n + BigInt(value);
+// Cached breeding combinations map
+let breedingCombinationsCache: Map<string, {parent1: string, parent2: string}[]> | null = null;
+
+// Build cached breeding combinations map from palDatabase
+function getBreedingCombinationsMap(): Map<string, {parent1: string, parent2: string}[]> {
+    if (breedingCombinationsCache) {
+        return breedingCombinationsCache;
     }
 
-    const hex = combined.toString(16).padStart(64, '0');
-    const guid1 = hex.slice(0, 32).replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5');
-    const guid2 = hex.slice(32).replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5');
+    console.log('Building breeding combinations cache...');
+    const combinationsMap = new Map<string, {parent1: string, parent2: string}[]>();
 
-    return [guid1, guid2];
-}
-
-function getBreedingResult(pal1: PalCardData, pal2: PalCardData): string | null {
-    if (pal1.characterId == null || pal2.characterId == null) {
-        return null;
-    }
-    
-    const bData1 = getPalData(pal1.characterId);
-    const bData2 = getPalData(pal2.characterId);
-    
-    if (!bData1 || !bData2) {
-        return null;
+    const exclusiveCombinations = new Set<string>();
+    // Initialize map for all known characters
+    for (const [_, palData] of Object.entries(palDatabase)) {
+        const characterId = palData.Tribe.replace("EPalTribeID::", "");
+        if (!combinationsMap.has(characterId)) {
+            combinationsMap.set(characterId, [ { parent1: characterId, parent2: characterId }]);
+        }
     }
 
-    // Check for specific breeding combinations first
-    const combination = bData1.Combinations.filter(a => 
-        (a.ParentTribeA == pal1.characterId && a.ParentTribeB == pal2.characterId) || 
-        (a.ParentTribeA == pal2.characterId && a.ParentTribeB == pal1.characterId)
-    );
-    
-    if (combination.length > 0) {
-        return combination[0].ChildCharacterID;
-    }
-    
-    // Calculate breeding rank and find closest match
-    const bFinal = Math.floor((bData1.CombiRank + bData2.CombiRank + 1) / 2);
-    
-    const closest = Object.values(palDatabase)
-        .filter(a => a.Combinations.every(c => c.ChildCharacterID !== a.Tribe.replace("EPalTribeID::", "")))
-        .sort((a, b) => {
-            const distanceA = Math.abs(a.CombiRank - bFinal);
-            const distanceB = Math.abs(b.CombiRank - bFinal);
-            
-            if (distanceA === distanceB) {
-                return a.CombiRank - b.CombiRank;
+    // Add explicit combinations from .Combinations in palDatabase
+    for (const [_, palData] of Object.entries(palDatabase)) {
+        for (const combination of palData.Combinations) {
+            const childId = combination.ChildCharacterID;
+            exclusiveCombinations.add(childId);
+            const parent1 = combination.ParentTribeA;
+            const parent2 = combination.ParentTribeB;
+
+            if (!combinationsMap.has(childId)) {
+                combinationsMap.set(childId, []);
             }
-            
-            return distanceA - distanceB;
-        })[0];
-    
-    return closest ? closest.Tribe.replace("EPalTribeID::", "") : null;
+            const existing = combinationsMap.get(childId);
+            const alreadyExists = existing.some(combo =>
+                (combo.parent1 === parent1 && combo.parent2 === parent2) ||
+                (combo.parent1 === parent2 && combo.parent2 === parent1)
+            );
+            if (!alreadyExists) {
+                existing.push({ parent1, parent2 });
+            }
+        }
+    }
+
+    // Add CombiRank-based combinations
+    const palEntries = Object.values(palDatabase);
+
+    for (const targetPal of palEntries) {
+        const targetCharacterId = targetPal.Tribe.replace("EPalTribeID::", "");
+        if(exclusiveCombinations.has(targetCharacterId)) continue;
+        const targetRank = targetPal.CombiRank;
+
+        // Find all pairs that produce this target rank
+        for (let i = 0; i < palEntries.length; i++) {
+            for (let j = i; j < palEntries.length; j++) {
+                const pal1 = palEntries[i];
+                const pal2 = palEntries[j];
+
+                const predictedRank = Math.floor((pal1.CombiRank + pal2.CombiRank + 1) / 2);
+
+                if (predictedRank === targetRank) {
+                    const parent1 = pal1.Tribe.replace("EPalTribeID::", "");
+                    const parent2 = pal2.Tribe.replace("EPalTribeID::", "");
+
+                    // Skip if already exists from explicit combinations
+                    const existing = combinationsMap.get(targetCharacterId) || [];
+                    const alreadyExists = existing.some(combo =>
+                        (combo.parent1 === parent1 && combo.parent2 === parent2) ||
+                        (combo.parent1 === parent2 && combo.parent2 === parent1)
+                    );
+
+                    if (!alreadyExists) {
+                        combinationsMap.get(targetCharacterId)!.push({ parent1, parent2 });
+                    }
+                }
+            }
+        }
+    }
+
+    // Log statistics
+    let totalCombinations = 0;
+    for (const [characterId, combinations] of combinationsMap) {
+        totalCombinations += combinations.length;
+        if (combinations.length > 0) {
+            console.log(`${characterId}: ${combinations.length} breeding combinations`);
+        }
+    }
+
+    console.log(`Cached ${totalCombinations} total breeding combinations for ${combinationsMap.size} characters`);
+
+    breedingCombinationsCache = combinationsMap;
+    return combinationsMap;
 }
+
 
 // Collect all work speed boosting passives from owned pals
 function collectAvailableWorkSpeedPassives(pals: PalCardData[]): {passive: PassiveSkill, count: number, sources: PalCardData[]}[] {
@@ -104,6 +144,29 @@ function collectAvailableWorkSpeedPassives(pals: PalCardData[]): {passive: Passi
     });
 }
 
+export interface SimplePal {
+    characterId: string,
+    gender: "Male" | "Female" | "Neutral",
+    passives: string[],
+    level: number
+}
+export interface PalWithGenealogy extends SimplePal{
+    parent1?: PalWithGenealogy,
+    parent2?: PalWithGenealogy,
+    probability?: number // Probability of getting this specific passive combination
+}
+
+export interface BreedingRoute {
+    target: PalWithGenealogy;
+    steps: BreedingStep[];
+}
+
+export interface BreedingStep {
+    parent1: PalWithGenealogy;
+    parent2: PalWithGenealogy;
+    result: PalWithGenealogy;
+    generation: number;
+}
 // Find ALL available optimal passives for maximum work speed
 function findOptimalPassiveCombination(availablePassives: {passive: PassiveSkill, count: number, sources: PalCardData[]}[]): PassiveSkill[] {
     console.log(`Analyzing ${availablePassives.length} available work speed passives:`);
@@ -154,972 +217,646 @@ function findOptimalPassiveCombination(availablePassives: {passive: PassiveSkill
     return bestCombination;
 }
 
-// Generate all combinations of given size from available passives
-function generateCombinations(availablePassives: {passive: PassiveSkill, count: number, sources: PalCardData[]}[], size: number): PassiveSkill[][] {
-    const combinations: PassiveSkill[][] = [];
+// Generate all possible passive combinations (1-4 passives) from parent pool
+function generatePassiveCombinations(parent1Passives: string[], parent2Passives: string[]): {passives: string[], probability: number}[] {
+    // Combine parent passives and remove duplicates
+    const passivePool = [...new Set([...parent1Passives, ...parent2Passives])];
     
-    function backtrack(start: number, currentCombination: PassiveSkill[]) {
-        if (currentCombination.length === size) {
-            combinations.push([...currentCombination]);
+    if (passivePool.length === 0) {
+        return [{passives: [], probability: 1.0}];
+    }
+    
+    const combinations: {passives: string[], probability: number}[] = [];
+    
+    // Generate all possible combinations of 1-4 passives
+    for (let numPassives = 1; numPassives <= Math.min(4, passivePool.length); numPassives++) {
+        const combos = getCombinations(passivePool, numPassives);
+        
+        // Each combination has equal probability within its size group
+        // Real game probably has different probabilities, but this is a reasonable approximation
+        const probabilityPerCombo = 1 / (4 * combos.length); // Assuming equal chance for 1, 2, 3, or 4 passives
+        
+        for (const combo of combos) {
+            combinations.push({
+                passives: combo,
+                probability: probabilityPerCombo
+            });
+        }
+    }
+    
+    // Also include the possibility of no passives (though rare)
+    combinations.push({passives: [], probability: 0.05});
+    
+    // Normalize probabilities so they sum to 1
+    const totalProb = combinations.reduce((sum, c) => sum + c.probability, 0);
+    combinations.forEach(c => c.probability = c.probability / totalProb);
+    
+    return combinations;
+}
+
+// Helper function to get all combinations of k items from array
+function getCombinations<T>(array: T[], k: number): T[][] {
+    if (k === 0) return [[]];
+    if (k > array.length) return [];
+    
+    const result: T[][] = [];
+    
+    function backtrack(start: number, currentCombo: T[]) {
+        if (currentCombo.length === k) {
+            result.push([...currentCombo]);
             return;
         }
         
-        for (let i = start; i < availablePassives.length; i++) {
-            const passive = {
-                Id: availablePassives[i].passive.Id || '',
-                Name: availablePassives[i].passive.Name || 'Unknown',
-                Rating: availablePassives[i].passive.Rating || 0,
-                Description: availablePassives[i].passive.Description || ''
-            };
-            currentCombination.push(passive);
-            backtrack(i + 1, currentCombination);
-            currentCombination.pop();
+        for (let i = start; i < array.length; i++) {
+            currentCombo.push(array[i]);
+            backtrack(i + 1, currentCombo);
+            currentCombo.pop();
         }
     }
     
     backtrack(0, []);
-    return combinations;
+    return result;
 }
 
-// Calculate the probability of getting specific passives from breeding
-function calculatePassiveProbability(targetPassives: PassiveSkill[], parent1Passives: PassiveSkill[], parent2Passives: PassiveSkill[]): number {
-    const allParentPassives = [...parent1Passives, ...parent2Passives];
-    const uniqueParentPassives = allParentPassives.filter((passive, index, self) => 
-        index === self.findIndex(p => p.Id === passive.Id)
-    );
-    
-    const targetPassiveIds = new Set(targetPassives.map(p => p.Id));
-    const availableTargetPassives = uniqueParentPassives.filter(p => targetPassiveIds.has(p.Id));
-    
-    if (availableTargetPassives.length < targetPassives.length) {
-        return 0; // Impossible to get all target passives
-    }
-    
-    const numTargetPassives = targetPassives.length;
-    
-    // Probability distribution: 40% for 1, 30% for 2, 20% for 3, 10% for 4
-    const baseProbabilities = [0, 0.4, 0.3, 0.2, 0.1];
-    
-    if (numTargetPassives === 0) return baseProbabilities[1] + baseProbabilities[2] + baseProbabilities[3] + baseProbabilities[4];
-    if (numTargetPassives > 4) return 0;
-    
-    // Calculate combination probability for getting exactly the target passives
-    const totalUniquePassives = uniqueParentPassives.length;
-    const combinations = (n: number, r: number): number => {
-        if (r > n) return 0;
-        if (r === 0 || r === n) return 1;
-        let result = 1;
-        for (let i = 0; i < r; i++) {
-            result = result * (n - i) / (i + 1);
-        }
-        return result;
-    };
-    
-    let probability = 0;
-    
-    // For each possible number of passives inherited (1-4)
-    for (let numInherited = numTargetPassives; numInherited <= Math.min(4, totalUniquePassives); numInherited++) {
-        const probOfGettingThisMany = baseProbabilities[numInherited];
-        
-        // Probability of getting our target passives among the inherited ones
-        const waysToGetTargets = combinations(availableTargetPassives.length, numTargetPassives);
-        const waysToFillRemaining = combinations(totalUniquePassives - availableTargetPassives.length, numInherited - numTargetPassives);
-        const totalWays = combinations(totalUniquePassives, numInherited);
-        
-        const probOfGettingTargets = totalWays > 0 ? (waysToGetTargets * waysToFillRemaining) / totalWays : 0;
-        
-        probability += probOfGettingThisMany * probOfGettingTargets;
-    }
-    
-    return probability;
-}
 
-// Find what parent combinations can produce the target character
-function findParentsForTarget(targetCharacterId: string, allPals: PalCardData[]): {parent1: string, parent2: string}[] {
-    const possibleParents: {parent1: string, parent2: string}[] = [];
+function findBreedingRoute2(characterId: string, passives: string[], pals: SimplePal[]) {
+    const algorithmStart = Date.now();
+    const breedingRoutes = getBreedingCombinationsMap();
+    const palsWithPassives = pals.filter(a=> a.passives.some(ps=> passives.some(p=> p === ps)));
     
-    // Normalize target character ID for comparison (try both cases)
-    const targetPalData = getPalData(targetCharacterId) || getPalData(targetCharacterId.charAt(0).toUpperCase() + targetCharacterId.slice(1).toLowerCase());
-    if (!targetPalData) {
-        console.log(`No pal data found for target: ${targetCharacterId}`);
-        return possibleParents;
-    }
+    console.log(`  Starting with ${palsWithPassives.length} pals that have desired passives (from ${pals.length} total)`);
     
-    // Check all pal combinations in the database to see what can produce our target
-    for (const [_, palData] of Object.entries(palDatabase)) {
-        for (const combination of palData.Combinations) {
-            // Case-insensitive comparison
-            if (combination.ChildCharacterID.toLowerCase() === targetCharacterId.toLowerCase()) {
-                const parent1 = combination.ParentTribeA;
-                const parent2 = combination.ParentTribeB;
+    // Keep track of all discovered pals across all generations
+    const allDiscoveredPals: PalWithGenealogy[] = [];
+    let currentGeneration = [...palsWithPassives];
+    let generationCount = 0;
+    const maxGenerations = 5; // Reduced from 10 - diminishing returns after gen 3-4
+    const maxCombinationsPerGen = 50000; // Prevent runaway combinations
+    const maxPalsPerGeneration = 100; // Limit generation size
+    
+    while (generationCount < maxGenerations) {
+        const generationStart = Date.now();
+        const nextGeneration: PalWithGenealogy[] = [];
+        let foundNewCombinations = false;
+        let combinationsAttempted = 0;
+        
+        // Try all combinations of current generation pals
+        for (let i = 0; i < currentGeneration.length; i++) {
+            for (let j = i + 1; j < currentGeneration.length; j++) {
+                combinationsAttempted++;
                 
-                // Allow all valid parent combinations, including same-species breeding
-                possibleParents.push({
-                    parent1: parent1,
-                    parent2: parent2
-                });
-            }
-        }
-    }
-    
-    // Also check CombiRank method - find pals that when bred together produce target rank
-    const targetRank = targetPalData.CombiRank;
-    for (const [_, palData1] of Object.entries(palDatabase)) {
-        for (const [_, palData2] of Object.entries(palDatabase)) {
-            const predictedRank = Math.floor((palData1.CombiRank + palData2.CombiRank + 1) / 2);
-            if (predictedRank === targetRank) {
-                const char1 = palData1.Tribe.replace("EPalTribeID::", "");
-                const char2 = palData2.Tribe.replace("EPalTribeID::", "");
-                
-                // Allow all combinations except identical pairs (same individual, not same species)
-                if (char1 !== char2) {
-                    possibleParents.push({parent1: char1, parent2: char2});
+                // Early exit if we've hit the combination limit
+                if (combinationsAttempted > maxCombinationsPerGen) {
+                    console.log(`    Hit combination limit (${maxCombinationsPerGen}) - stopping generation early`);
+                    break;
                 }
-            }
-        }
-    }
-    
-    // Add explicit same-species breeding if target species exists in owned pals
-    const normalizedTarget = targetCharacterId.toLowerCase();
-    const targetSpeciesOwned = allPals.filter(pal => 
-        pal.characterId && pal.characterId.toLowerCase() === normalizedTarget
-    );
-    
-    if (targetSpeciesOwned.length >= 2) {
-        // Add same-species breeding as a possibility
-        const targetSpeciesId = targetSpeciesOwned[0].characterId; // Use the actual case from owned pal
-        possibleParents.push({
-            parent1: targetSpeciesId,
-            parent2: targetSpeciesId
-        });
-        console.log(`Added same-species breeding: ${targetSpeciesId} + ${targetSpeciesId} = ${targetSpeciesId}`);
-    }
-    
-    // Remove duplicates
-    const uniqueParents = possibleParents.filter((parent, index, self) => 
-        index === self.findIndex(p => 
-            (p.parent1 === parent.parent1 && p.parent2 === parent.parent2) ||
-            (p.parent1 === parent.parent2 && p.parent2 === parent.parent1)
-        )
-    );
-
-    return uniqueParents;
-}
-
-// Find pals that have the desired passives and can be used as breeding sources
-function findPalsWithPassives(pals: PalCardData[], desiredPassives: PassiveSkill[]): Map<string, PalCardData[]> {
-    const passiveSourceMap = new Map<string, PalCardData[]>();
-    
-    // Initialize map for each desired passive
-    for (const passive of desiredPassives) {
-        passiveSourceMap.set(passive.Id, []);
-    }
-    
-    // Find pals that have each desired passive
-    for (const pal of pals) {
-        if (!pal.passiveSkills) continue;
-        
-        for (const passive of pal.passiveSkills) {
-            if (passiveSourceMap.has(passive.Id)) {
-                passiveSourceMap.get(passive.Id)!.push(pal);
-            }
-        }
-    }
-    
-    return passiveSourceMap;
-}
-
-// Find the best pair of same-species pals for breeding with complementary passives
-function findBestSameSpeciesBreeding(
-    targetSpecies: string, 
-    pals: PalCardData[], 
-    desiredPassives: PassiveSkill[]
-): { parent1: PalCardData, parent2: PalCardData } | null {
-    // Get all pals of the target species
-    const speciesPals = pals.filter(pal => 
-        pal.characterId && pal.characterId.toLowerCase() === targetSpecies.toLowerCase()
-    );
-    
-    if (speciesPals.length < 2) {
-        console.log(`Not enough ${targetSpecies} for same-species breeding (found ${speciesPals.length})`);
-        return null;
-    }
-    
-    console.log(`Found ${speciesPals.length} ${targetSpecies} for same-species breeding`);
-    
-    // Find the best pair with complementary desired passives
-    let bestPair: { parent1: PalCardData, parent2: PalCardData } | null = null;
-    let bestScore = 0;
-    
-    for (let i = 0; i < speciesPals.length; i++) {
-        for (let j = i + 1; j < speciesPals.length; j++) {
-            const pal1 = speciesPals[i];
-            const pal2 = speciesPals[j];
-            
-            // Calculate combined unique passives
-            const pal1Passives = pal1.passiveSkills || [];
-            const pal2Passives = pal2.passiveSkills || [];
-            const combinedPassives = [...pal1Passives, ...pal2Passives];
-            const uniquePassives = combinedPassives.filter((passive, index, self) => 
-                index === self.findIndex(p => p.Id === passive.Id)
-            );
-            
-            // Count desired passives available
-            const availableDesiredPassives = uniquePassives.filter(passive =>
-                desiredPassives.some(desired => desired.Id === passive.Id)
-            );
-            
-            // Calculate breeding probability
-            const probability = calculatePassiveProbability(availableDesiredPassives, pal1Passives, pal2Passives);
-            
-            // Score: (available desired passives) * probability
-            const score = availableDesiredPassives.length * probability;
-            
-            if (score > bestScore) {
-                bestScore = score;
-                bestPair = { parent1: pal1, parent2: pal2 };
-            }
-        }
-    }
-    
-    if (bestPair) {
-        const parent1Passives = bestPair.parent1.passiveSkills?.map(p => p.Name).join(', ') || 'none';
-        const parent2Passives = bestPair.parent2.passiveSkills?.map(p => p.Name).join(', ') || 'none';
-        console.log(`Best ${targetSpecies} pair: [${parent1Passives}] + [${parent2Passives}], score: ${bestScore}`);
-    }
-    
-    return bestPair;
-}
-
-// Comprehensive breeding route explorer that finds all possible paths
-function findExhaustiveBreedingRoutes(
-    targetCharacterId: string,
-    pals: PalCardData[],
-    optimalPassives: PassiveSkill[],
-    maxDepth: number = 5
-): BreedingPair[][] {
-    console.log(`Starting exhaustive search for ${targetCharacterId} with ${optimalPassives.length} optimal passives`);
-    
-    const allRoutes: BreedingPair[][] = [];
-    const visitedStates = new Set<string>();
-    
-    // Find all possible parent combinations for target
-    const parentCombinations = findParentsForTarget(targetCharacterId, pals);
-    
-    // Recursively explore all possible breeding paths
-    function exploreBreedingPath(
-        currentTarget: string,
-        currentPals: PalCardData[],
-        desiredPassives: PassiveSkill[],
-        currentRoute: BreedingPair[],
-        depth: number
-    ): void {
-        if (depth > maxDepth) return;
-        
-        // Create state key to avoid infinite loops
-        const stateKey = `${currentTarget}-${desiredPassives.map(p => p.Id).sort().join(',')}-${depth}`;
-        if (visitedStates.has(stateKey)) return;
-        visitedStates.add(stateKey);
-        
-        // Find parent combinations for current target
-        const targetParentCombos = findParentsForTarget(currentTarget, currentPals);
-        
-        for (const parentCombo of targetParentCombos) {
-            const { parent1: parent1Type, parent2: parent2Type } = parentCombo;
-            
-            // Try all possible parent pairs of these types
-            const parent1Candidates = currentPals.filter(p => 
-                p.characterId && p.characterId.toLowerCase() === parent1Type.toLowerCase()
-            );
-            const parent2Candidates = currentPals.filter(p => 
-                p.characterId && p.characterId.toLowerCase() === parent2Type.toLowerCase()
-            );
-            
-            // Also try breeding to create better parents
-            if (depth < maxDepth) {
-                // Recursively try to breed better parent1
-                exploreBreedingPath(parent1Type, currentPals, desiredPassives, currentRoute, depth + 1);
-                // Recursively try to breed better parent2  
-                exploreBreedingPath(parent2Type, currentPals, desiredPassives, currentRoute, depth + 1);
-            }
-            
-            // Try all combinations of existing parent candidates
-            for (const parent1 of parent1Candidates) {
-                for (const parent2 of parent2Candidates) {
-                    // Skip identical individuals (but allow same species)
-                    if (parent1.id === parent2.id) continue;
+                
+                const palA = currentGeneration[i];
+                const palB = currentGeneration[j];
+                
+                // Check if they have different genders or can breed together
+                const canBreed = palA.gender !== palB.gender || palA.gender === "Neutral";
+                if (!canBreed) continue;
+                
+                // Get what breeding result would be
+                const breedingResult = getBreedingResult(palA, palB);
+                if (!breedingResult) continue;
+                
+                // Generate all possible offspring passive combinations
+                const possibleCombinations = generatePassiveCombinations(palA.passives, palB.passives);
+                
+                // Filter for combinations that have desired passives
+                const beneficialCombinations = possibleCombinations.filter(combo => {
+                    const desiredPassivesInCombo = combo.passives.filter(p => passives.includes(p));
+                    const palADesiredCount = palA.passives.filter(p => passives.includes(p)).length;
+                    const palBDesiredCount = palB.passives.filter(p => passives.includes(p)).length;
                     
-                    const parent1Passives = parent1.passiveSkills || [];
-                    const parent2Passives = parent2.passiveSkills || [];
-                    const combinedPassives = [...parent1Passives, ...parent2Passives];
-                    const uniquePassives = combinedPassives.filter((passive, index, self) => 
-                        index === self.findIndex(p => p.Id === passive.Id)
+                    // Only keep if we get more desired passives than either parent
+                    return desiredPassivesInCombo.length > Math.max(palADesiredCount, palBDesiredCount);
+                });
+                
+                // Add all beneficial combinations to next generation
+                for (const combo of beneficialCombinations) {
+                    // Check if this exact combination already exists
+                    const alreadyExists = [...allDiscoveredPals, ...nextGeneration].some(existing => 
+                        existing.characterId === breedingResult && 
+                        existing.passives.length === combo.passives.length &&
+                        existing.passives.every(p => combo.passives.includes(p))
                     );
                     
-                    const availableDesiredPassives = uniquePassives.filter(passive =>
-                        desiredPassives.some(desired => desired.Id === passive.Id)
-                    );
-                    
-                    if (availableDesiredPassives.length > 0) {
-                        const probability = calculatePassiveProbability(availableDesiredPassives, parent1Passives, parent2Passives);
-                        
-                        const breedingStep: BreedingPair = {
-                            parent1,
-                            parent2,
-                            resultCharacterId: currentTarget,
-                            generation: depth,
-                            expectedPassives: availableDesiredPassives.map(passive => ({
-                                Id: passive.Id || '',
-                                Name: passive.Name || 'Unknown',
-                                Rating: passive.Rating || 0,
-                                Description: passive.Description || ''
-                            })),
-                            passiveProbability: probability,
-                            workSpeedScore: GetPalStats(currentTarget, 100, 100, 100, availableDesiredPassives, 30, 10).craftSpeed
+                    if (!alreadyExists && combo.probability > 0.01) { // Only include combinations with reasonable probability
+                        const newPal: PalWithGenealogy = {
+                            parent1: palA,
+                            parent2: palB,
+                            characterId: breedingResult,
+                            passives: combo.passives,
+                            gender: 'Neutral',
+                            level: 1,
+                            probability: combo.probability
                         };
                         
-                        const newRoute = [...currentRoute, breedingStep];
-                        allRoutes.push(newRoute);
+                        nextGeneration.push(newPal);
+                        foundNewCombinations = true;
                     }
                 }
             }
+            // Break out of outer loop too if we hit the limit
+            if (combinationsAttempted > maxCombinationsPerGen) break;
         }
+        
+        // Sort next generation by number of desired passives (keep best ones)
+        nextGeneration.sort((a, b) => {
+            const aDesired = a.passives.filter(p => passives.includes(p)).length;
+            const bDesired = b.passives.filter(p => passives.includes(p)).length;
+            return bDesired - aDesired;
+        });
+        
+        // Limit generation size to prevent explosion
+        const limitedGeneration = nextGeneration.slice(0, maxPalsPerGeneration);
+        
+        // Add this generation's results to our total collection
+        allDiscoveredPals.push(...limitedGeneration);
+        const generationTime = Date.now() - generationStart;
+        console.log(`  Gen ${generationCount + 1}: ${generationTime}ms - ${combinationsAttempted} combinations attempted, ${limitedGeneration.length}/${nextGeneration.length} beneficial results kept`);
+        
+        // If no new combinations were found, we're done
+        if (!foundNewCombinations) {
+            break;
+        }
+        
+        // Prepare for next generation: Use only the limited generation + best from current
+        // Keep only the best performers from current generation to prevent explosion
+        const currentBest = currentGeneration
+            .sort((a, b) => {
+                const aDesired = a.passives.filter(p => passives.includes(p)).length;
+                const bDesired = b.passives.filter(p => passives.includes(p)).length;
+                return bDesired - aDesired;
+            })
+            .slice(0, 50); // Keep top 50 from current generation
+            
+        currentGeneration = [...currentBest, ...limitedGeneration];
+        generationCount++;
     }
     
-    // Start the exhaustive exploration
-    exploreBreedingPath(targetCharacterId, pals, optimalPassives, [], 1);
+    const algorithmTime = Date.now() - algorithmStart;
+    console.log(`  Discovery algorithm completed: ${algorithmTime}ms - ${generationCount} generations, ${allDiscoveredPals.length} total discovered combinations`);
     
-    console.log(`Found ${allRoutes.length} total breeding routes`);
-    return allRoutes;
+    return allDiscoveredPals;
 }
 
-// Simple 2-step breeding: 1) Breed pals with different optimal passives together, 2) Breed result to target
-function findBreedingRouteForTarget(
-    targetCharacterId: string,
-    pals: PalCardData[],
-    optimalPassives: PassiveSkill[],
-    maxDepth: number = 3
-): BreedingPair[] {
-    console.log(`Step 1: Find pals with different optimal passives and breed them together`);
-    console.log(`Step 2: Breed the result to get ${targetCharacterId}`);
+function findRoutesToTarget(targetCharacterId: string, existingPals: SimplePal[], bredPals: PalWithGenealogy[], desiredPassives: string[]): BreedingRoute[] {
+    const pathfindingStart = Date.now();
+    const breedingRoutes = getBreedingCombinationsMap();
     
-    const route: BreedingPair[] = [];
+    // Sort bred pals by number of desired passives (best first)
+    const sortStart = Date.now();
+    const sortedBredPals = bredPals.sort((a, b) => {
+        const aDesired = a.passives.filter(p => desiredPassives.includes(p)).length;
+        const bDesired = b.passives.filter(p => desiredPassives.includes(p)).length;
+        return bDesired - aDesired;
+    });
+    const sortTime = Date.now() - sortStart;
     
-    // Step 1: Find two pals with different optimal passives and breed them
-    const combinationStep = combineOptimalPassives(pals, optimalPassives);
-    if (!combinationStep) {
-        console.log('Cannot combine optimal passives - no compatible pals found');
-        return [];
-    }
+    console.log(`  Pathfinding: Sorted ${bredPals.length} bred pals in ${sortTime}ms`);
     
-    route.push(combinationStep);
-    console.log(`Step 1: Breed ${combinationStep.parent1.name || combinationStep.parent1.characterId} + ${combinationStep.parent2.name || combinationStep.parent2.characterId} → ${combinationStep.resultCharacterId} with ${combinationStep.expectedPassives?.map(p => p.Name).join(', ')}`);
+    const validRoutes: BreedingRoute[] = [];
+    let directRoutesFound = 0;
+    let indirectRoutesFound = 0;
+    let palsProcessed = 0;
     
-    // Step 2: Create virtual result pal from step 1
-    const combinedPal: PalCardData = {
-        id: `bred-${combinationStep.resultCharacterId}`,
-        instanceId: 'bred',
-        name: `Bred ${combinationStep.resultCharacterId}`,
-        characterId: combinationStep.resultCharacterId,
-        passiveSkills: combinationStep.expectedPassives || [],
-        level: 30,
-        talentHP: 100,
-        talentShot: 100,
-        talentDefense: 100
-    };
-    
-    // Step 3: Breed combined pal to target character
-    const targetStep = breedToTargetCharacter(targetCharacterId, combinedPal, pals);
-    if (targetStep) {
-        route.push(targetStep);
-        console.log(`Step 2: Breed ${combinedPal.characterId} → ${targetCharacterId} with ${targetStep.expectedPassives?.map(p => p.Name).join(', ')}`);
-    } else {
-        console.log(`Cannot breed ${combinedPal.characterId} to ${targetCharacterId}`);
-    }
-    
-    console.log(`Final route has ${route.length} steps`);
-    return route;
-}
-
-// Breed pals with different optimal passives - DON'T CARE WHAT INTERMEDIATE PAL WE GET
-function combineOptimalPassives(pals: PalCardData[], optimalPassives: PassiveSkill[]): BreedingPair | null {
-    console.log(`Breeding pals with optimal passives together - don't care what intermediate we get`);
-    
-    // Find all pals that have ANY optimal passive
-    const palsWithOptimalPassives: PalCardData[] = [];
-    
-    for (const pal of pals) {
-        if (!pal.passiveSkills) continue;
+    // Try to find paths from each bred pal to the target
+    for (const bredPal of sortedBredPals) {
+        palsProcessed++;
+        const desiredPassivesInBred = bredPal.passives.filter(p => desiredPassives.includes(p));
+        if (desiredPassivesInBred.length === 0) continue; // Skip if no desired passives
         
-        const hasOptimalPassive = pal.passiveSkills.some(passive =>
-            optimalPassives.some(optimal => optimal.Id === passive.Id)
-        );
-        
-        if (hasOptimalPassive) {
-            palsWithOptimalPassives.push(pal);
-        }
-    }
-    
-    console.log(`Found ${palsWithOptimalPassives.length} pals with optimal passives`);
-    
-    // Try breeding any two of them together
-    let bestPair: { parent1: PalCardData, parent2: PalCardData } | null = null;
-    let bestPassiveCount = 0;
-    let bestResult: string | null = null;
-    
-    for (let i = 0; i < palsWithOptimalPassives.length; i++) {
-        for (let j = i + 1; j < palsWithOptimalPassives.length; j++) {
-            const pal1 = palsWithOptimalPassives[i];
-            const pal2 = palsWithOptimalPassives[j];
-            
-            // What would breeding these two produce? DON'T CARE WHAT IT IS
-            const breedingResult = getBreedingResult(pal1, pal2);
-            if (!breedingResult) continue;
-            
-            // Count combined optimal passives
-            const combinedPassives = [...(pal1.passiveSkills || []), ...(pal2.passiveSkills || [])];
-            const uniquePassives = combinedPassives.filter((passive, index, self) => 
-                index === self.findIndex(p => p.Id === passive.Id)
-            );
-            
-            const optimalPassivesAvailable = uniquePassives.filter(passive =>
-                optimalPassives.some(optimal => optimal.Id === passive.Id)
-            );
-            
-            if (optimalPassivesAvailable.length > bestPassiveCount) {
-                bestPassiveCount = optimalPassivesAvailable.length;
-                bestPair = { parent1: pal1, parent2: pal2 };
-                bestResult = breedingResult;
+        // Try direct path: can this bred pal be used directly to breed the target?
+        const directStart = Date.now();
+        const route = findDirectPath(bredPal, targetCharacterId, existingPals, bredPals, breedingRoutes, desiredPassives);
+        if (route) {
+            validRoutes.push(route);
+            directRoutesFound++;
+        } else {
+            // Try indirect path: find intermediate breeding steps
+            const indirectRoute = findIndirectPath(bredPal, targetCharacterId, existingPals, bredPals, breedingRoutes, desiredPassives);
+            if (indirectRoute) {
+                validRoutes.push(indirectRoute);
+                indirectRoutesFound++;
             }
         }
     }
     
-    if (!bestPair || !bestResult) {
-        console.log('No valid breeding combination found');
-        return null;
-    }
+    const pathfindingTime = Date.now() - pathfindingStart;
+    console.log(`  Pathfinding completed: ${pathfindingTime}ms - Processed ${palsProcessed} pals, found ${directRoutesFound} direct + ${indirectRoutesFound} indirect routes`);
     
-    const parent1Passives = bestPair.parent1.passiveSkills || [];
-    const parent2Passives = bestPair.parent2.passiveSkills || [];
-    const combinedPassives = [...parent1Passives, ...parent2Passives];
-    const uniquePassives = combinedPassives.filter((passive, index, self) => 
-        index === self.findIndex(p => p.Id === passive.Id)
-    );
-    
-    const expectedPassives = uniquePassives.filter(passive =>
-        optimalPassives.some(optimal => optimal.Id === passive.Id)
-    ).map(passive => ({
-        Id: passive.Id || '',
-        Name: passive.Name || 'Unknown',
-        Rating: passive.Rating || 0,
-        Description: passive.Description || ''
-    }));
-    
-    console.log(`BREED: ${bestPair.parent1.name || bestPair.parent1.characterId} + ${bestPair.parent2.name || bestPair.parent2.characterId} = ${bestResult} (INTERMEDIATE, DON'T CARE) with passives: ${expectedPassives.map(p => p.Name).join(', ')}`);
-    
-    return {
-        parent1: bestPair.parent1,
-        parent2: bestPair.parent2,
-        resultCharacterId: bestResult,
-        generation: 1,
-        expectedPassives,
-        passiveProbability: calculatePassiveProbability(expectedPassives, parent1Passives, parent2Passives),
-        workSpeedScore: GetPalStats(bestResult, 100, 100, 100, expectedPassives, 30, 10).craftSpeed
-    };
+    return validRoutes;
 }
 
-// Find the best intermediate species that can hold all optimal passives
-function findBestIntermediateSpecies(pals: PalCardData[], optimalPassives: PassiveSkill[]): string | null {
-    const speciesScores = new Map<string, number>();
+// Try to find a direct breeding path using the bred pal as one parent
+function findDirectPath(bredPal: PalWithGenealogy, targetCharacterId: string, existingPals: SimplePal[], bredPals: PalWithGenealogy[], breedingRoutes: Map<string, {parent1: string, parent2: string}[]>, desiredPassives: string[]): BreedingRoute | null {
+    const targetCombinations = breedingRoutes.get(targetCharacterId);
+    if (!targetCombinations) return null;
     
-    // Score each species by how many optimal passives it can access
-    for (const pal of pals) {
-        if (!pal.characterId) continue;
+    const allAvailablePals = [...existingPals, ...bredPals];
+    
+    for (const combination of targetCombinations) {
+        const { parent1, parent2 } = combination;
         
-        const matchingPassives = (pal.passiveSkills || []).filter(passive =>
-            optimalPassives.some(optimal => optimal.Id === passive.Id)
-        );
-        
-        const currentScore = speciesScores.get(pal.characterId) || 0;
-        speciesScores.set(pal.characterId, Math.max(currentScore, matchingPassives.length));
-    }
-    
-    // Find species with highest score
-    let bestSpecies: string | null = null;
-    let bestScore = 0;
-    
-    for (const [species, score] of speciesScores) {
-        if (score > bestScore) {
-            bestScore = score;
-            bestSpecies = species;
-        }
-    }
-    
-    return bestSpecies;
-}
-
-// Create a pal of given species with optimal passives
-function createPalWithOptimalPassives(species: string, pals: PalCardData[], optimalPassives: PassiveSkill[]): BreedingPair | null {
-    const speciesPals = pals.filter(p => p.characterId?.toLowerCase() === species.toLowerCase());
-    
-    if (speciesPals.length < 2) return null;
-    
-    let bestPair: { parent1: PalCardData, parent2: PalCardData } | null = null;
-    let bestPassiveCount = 0;
-    
-    // Try all pairs of this species
-    for (let i = 0; i < speciesPals.length; i++) {
-        for (let j = i + 1; j < speciesPals.length; j++) {
-            const parent1 = speciesPals[i];
-            const parent2 = speciesPals[j];
-            
-            const combinedPassives = [...(parent1.passiveSkills || []), ...(parent2.passiveSkills || [])];
-            const uniquePassives = combinedPassives.filter((passive, index, self) => 
-                index === self.findIndex(p => p.Id === passive.Id)
+        // Check if bred pal matches one of the required parents
+        if (bredPal.characterId === parent1) {
+            // Find a suitable second parent
+            const secondParent = allAvailablePals.find(pal => 
+                pal.characterId === parent2 && 
+                (pal.gender !== bredPal.gender || pal.gender === "Neutral")
             );
             
-            const optimalPassivesAvailable = uniquePassives.filter(passive =>
-                optimalPassives.some(optimal => optimal.Id === passive.Id)
+            if (secondParent) {
+                return createRoute(bredPal, secondParent, targetCharacterId, desiredPassives);
+            }
+        } else if (bredPal.characterId === parent2) {
+            // Find a suitable first parent
+            const firstParent = allAvailablePals.find(pal => 
+                pal.characterId === parent1 && 
+                (pal.gender !== bredPal.gender || pal.gender === "Neutral")
             );
             
-            if (optimalPassivesAvailable.length > bestPassiveCount) {
-                bestPassiveCount = optimalPassivesAvailable.length;
-                bestPair = { parent1, parent2 };
+            if (firstParent) {
+                return createRoute(firstParent, bredPal, targetCharacterId, desiredPassives);
             }
         }
     }
     
-    if (!bestPair) return null;
-    
-    const parent1Passives = bestPair.parent1.passiveSkills || [];
-    const parent2Passives = bestPair.parent2.passiveSkills || [];
-    const combinedPassives = [...parent1Passives, ...parent2Passives];
-    const uniquePassives = combinedPassives.filter((passive, index, self) => 
-        index === self.findIndex(p => p.Id === passive.Id)
-    );
-    
-    const expectedPassives = uniquePassives.filter(passive =>
-        optimalPassives.some(optimal => optimal.Id === passive.Id)
-    ).map(passive => ({
-        Id: passive.Id || '',
-        Name: passive.Name || 'Unknown',
-        Rating: passive.Rating || 0,
-        Description: passive.Description || ''
-    }));
-    
-    return {
-        parent1: bestPair.parent1,
-        parent2: bestPair.parent2,
-        resultCharacterId: species,
-        generation: 1,
-        expectedPassives,
-        passiveProbability: calculatePassiveProbability(expectedPassives, parent1Passives, parent2Passives),
-        workSpeedScore: GetPalStats(species, 100, 100, 100, expectedPassives, 30, 10).craftSpeed
-    };
-}
-
-// Find ANY route from intermediate pal to target character - BRUTE FORCE ALL POSSIBILITIES
-function breedToTargetCharacter(targetCharacterId: string, intermediatePal: PalCardData, pals: PalCardData[]): BreedingPair | null {
-    console.log(`Finding ANY route from ${intermediatePal.characterId} to ${targetCharacterId}`);
-    
-    // Try breeding intermediate pal with EVERY other pal to see if we get target
-    for (const otherPal of pals) {
-        if (otherPal.id === intermediatePal.id) continue;
-        
-        const breedingResult1 = getBreedingResult(intermediatePal, otherPal);
-        if (breedingResult1?.toLowerCase() === targetCharacterId.toLowerCase()) {
-            console.log(`FOUND ROUTE: ${intermediatePal.characterId} + ${otherPal.characterId} = ${targetCharacterId}`);
-            
-            const combinedPassives = [...(intermediatePal.passiveSkills || []), ...(otherPal.passiveSkills || [])];
-            const uniquePassives = combinedPassives.filter((passive, index, self) => 
-                index === self.findIndex(p => p.Id === passive.Id)
-            );
-            
-            return {
-                parent1: intermediatePal,
-                parent2: otherPal,
-                resultCharacterId: targetCharacterId,
-                generation: 2,
-                expectedPassives: uniquePassives.map(p => ({
-                    Id: p.Id || '',
-                    Name: p.Name || 'Unknown',
-                    Rating: p.Rating || 0,
-                    Description: p.Description || ''
-                })),
-                passiveProbability: calculatePassiveProbability(uniquePassives, intermediatePal.passiveSkills || [], otherPal.passiveSkills || []),
-                workSpeedScore: GetPalStats(targetCharacterId, 100, 100, 100, uniquePassives, 30, 10).craftSpeed
-            };
-        }
-    }
-    
-    console.log(`No direct route found from ${intermediatePal.characterId} to ${targetCharacterId}`);
     return null;
 }
 
-// Enhance a route by adding intermediate breeding steps to consolidate more passives
-function enhanceRouteWithIntermediateSteps(
-    baseRoute: BreedingPair[],
-    pals: PalCardData[],
-    optimalPassives: PassiveSkill[],
-    maxDepth: number
-): BreedingPair[] {
-    const finalStep = baseRoute[baseRoute.length - 1];
-    const currentPassives = finalStep.expectedPassives || [];
-    const missingPassives = optimalPassives.filter(optimal => 
-        !currentPassives.some(current => current.Id === optimal.Id)
-    );
+// Try to find an indirect path through intermediate breeding steps
+function findIndirectPath(bredPal: PalWithGenealogy, targetCharacterId: string, existingPals: SimplePal[], bredPals: PalWithGenealogy[], breedingRoutes: Map<string, {parent1: string, parent2: string}[]>, desiredPassives: string[]): BreedingRoute | null {
+    const targetCombinations = breedingRoutes.get(targetCharacterId);
+    if (!targetCombinations) return null;
     
-    if (missingPassives.length === 0) {
-        return baseRoute; // Already optimal
-    }
+    const allAvailablePals = [...existingPals, ...bredPals];
     
-    console.log(`Trying to enhance route to include missing passives: ${missingPassives.map(p => p.Name).join(', ')}`);
-    
-    // Try to breed intermediate parents that have the missing passives
-    const enhancedRoute = [...baseRoute];
-    
-    // Look for ways to get missing passives into the parent types
-    const parentType1 = finalStep.parent1.characterId!;
-    const parentType2 = finalStep.parent2.characterId!;
-    
-    // Try to breed better parent1 with missing passives
-    const betterParent1 = findOrCreatePalWithPassives(parentType1, pals, [...currentPassives, ...missingPassives], maxDepth - baseRoute.length);
-    if (betterParent1.steps.length > 0) {
-        enhancedRoute.splice(-1, 0, ...betterParent1.steps); // Insert before final step
-        finalStep.parent1 = betterParent1.pal!;
-    }
-    
-    // Try to breed better parent2 with missing passives
-    const betterParent2 = findOrCreatePalWithPassives(parentType2, pals, [...currentPassives, ...missingPassives], maxDepth - enhancedRoute.length);
-    if (betterParent2.steps.length > 0) {
-        enhancedRoute.splice(-1, 0, ...betterParent2.steps); // Insert before final step
-        finalStep.parent2 = betterParent2.pal!;
-    }
-    
-    // Recalculate final step with potentially better parents
-    if (betterParent1.pal || betterParent2.pal) {
-        const parent1Passives = finalStep.parent1.passiveSkills || [];
-        const parent2Passives = finalStep.parent2.passiveSkills || [];
-        const combinedPassives = [...parent1Passives, ...parent2Passives];
-        const uniquePassives = combinedPassives.filter((passive, index, self) => 
-            index === self.findIndex(p => p.Id === passive.Id)
-        );
+    // For each target combination, see if we can breed the required parents
+    for (const combination of targetCombinations) {
+        const { parent1, parent2 } = combination;
         
-        const availableOptimalPassives = uniquePassives.filter(passive =>
-            optimalPassives.some(optimal => optimal.Id === passive.Id)
-        );
-        
-        finalStep.expectedPassives = availableOptimalPassives.map(passive => ({
-            Id: passive.Id || '',
-            Name: passive.Name || 'Unknown',
-            Rating: passive.Rating || 0,
-            Description: passive.Description || ''
-        }));
-        finalStep.passiveProbability = calculatePassiveProbability(availableOptimalPassives, parent1Passives, parent2Passives);
-        finalStep.workSpeedScore = GetPalStats(finalStep.resultCharacterId, 100, 100, 100, availableOptimalPassives, 30, 10).craftSpeed;
-    }
-    
-    return enhancedRoute;
-}
-
-// Enhanced function to find or create a pal with specific passives
-function findOrCreatePalWithPassives(
-    targetType: string,
-    pals: PalCardData[],
-    desiredPassives: PassiveSkill[],
-    maxDepth: number
-): { pal: PalCardData | null, steps: BreedingPair[] } {
-    if (maxDepth <= 0) {
-        // Just return best existing pal of this type
-        const existing = pals.filter(p => p.characterId?.toLowerCase() === targetType.toLowerCase());
-        let bestPal: PalCardData | null = null;
-        let bestScore = 0;
-        
-        for (const pal of existing) {
-            const matchingPassives = (pal.passiveSkills || []).filter(passive =>
-                desiredPassives.some(desired => desired.Id === passive.Id)
+        // Try to breed parent1 using our bred pal
+        const parent1Route = findDirectPath(bredPal, parent1, existingPals, bredPals, breedingRoutes, desiredPassives);
+        if (parent1Route) {
+            // Find parent2 from available pals
+            const secondParent = allAvailablePals.find(pal => 
+                pal.characterId === parent2 && 
+                (pal.gender !== 'Neutral' || parent1Route.target.gender !== 'Neutral')
             );
-            if (matchingPassives.length > bestScore) {
-                bestScore = matchingPassives.length;
-                bestPal = pal;
-            }
-        }
-        
-        return { pal: bestPal, steps: [] };
-    }
-    
-    // Try to breed this type with the desired passives
-    const parentCombinations = findParentsForTarget(targetType, pals);
-    
-    let bestResult: { pal: PalCardData | null, steps: BreedingPair[] } = { pal: null, steps: [] };
-    let bestScore = 0;
-    
-    for (const combo of parentCombinations) {
-        const parent1Candidates = pals.filter(p => p.characterId?.toLowerCase() === combo.parent1.toLowerCase());
-        const parent2Candidates = pals.filter(p => p.characterId?.toLowerCase() === combo.parent2.toLowerCase());
-        
-        for (const parent1 of parent1Candidates) {
-            for (const parent2 of parent2Candidates) {
-                if (parent1.id === parent2.id) continue;
-                
-                const combinedPassives = [...(parent1.passiveSkills || []), ...(parent2.passiveSkills || [])];
-                const uniquePassives = combinedPassives.filter((passive, index, self) => 
-                    index === self.findIndex(p => p.Id === passive.Id)
-                );
-                
-                const matchingPassives = uniquePassives.filter(passive =>
-                    desiredPassives.some(desired => desired.Id === passive.Id)
-                );
-                
-                if (matchingPassives.length > bestScore) {
-                    bestScore = matchingPassives.length;
-                    
-                    const breedingStep: BreedingPair = {
-                        parent1,
-                        parent2,
-                        resultCharacterId: targetType,
-                        generation: maxDepth,
-                        expectedPassives: matchingPassives.map(passive => ({
-                            Id: passive.Id || '',
-                            Name: passive.Name || 'Unknown',
-                            Rating: passive.Rating || 0,
-                            Description: passive.Description || ''
-                        })),
-                        passiveProbability: calculatePassiveProbability(matchingPassives, parent1.passiveSkills || [], parent2.passiveSkills || []),
-                        workSpeedScore: GetPalStats(targetType, 100, 100, 100, matchingPassives, 30, 10).craftSpeed
-                    };
-                    
-                    const resultPal: PalCardData = {
-                        id: `bred-${targetType}-${Date.now()}`,
-                        instanceId: 'bred',
-                        name: `Bred ${targetType}`,
-                        characterId: targetType,
-                        passiveSkills: matchingPassives,
-                        level: 30,
-                        talentHP: Math.max(parent1.talentHP || 0, parent2.talentHP || 0),
-                        talentShot: Math.max(parent1.talentShot || 0, parent2.talentShot || 0),
-                        talentDefense: Math.max(parent1.talentDefense || 0, parent2.talentDefense || 0)
-                    };
-                    
-                    bestResult = { pal: resultPal, steps: [breedingStep] };
-                }
-            }
-        }
-    }
-    
-    return bestResult;
-}
-
-// Find or breed a specific pal type with desired passives
-function findOrBreedPalWithPassives(
-    targetType: string,
-    pals: PalCardData[],
-    desiredPassives: PassiveSkill[],
-    maxDepth: number
-): { pal: PalCardData | null, steps: BreedingPair[] } {
-    
-    // First, check if we already own this pal type with some of the desired passives
-    const ownedPalsOfType = pals.filter(pal => pal.characterId === targetType);
-    let bestOwnedPal: PalCardData | null = null;
-    let bestOwnedScore = 0;
-    
-    for (const pal of ownedPalsOfType) {
-        const palPassives = pal.passiveSkills || [];
-        const matchingPassives = palPassives.filter(passive =>
-            desiredPassives.some(desired => desired.Id === passive.Id)
-        );
-        const score = matchingPassives.length;
-        
-        if (score > bestOwnedScore) {
-            bestOwnedScore = score;
-            bestOwnedPal = pal;
-        }
-    }
-    
-    // If we have a decent pal already, or we've hit max depth, use what we have
-    if (bestOwnedPal && (bestOwnedScore >= desiredPassives.length * 0.5 || maxDepth <= 0)) {
-        return { pal: bestOwnedPal, steps: [] };
-    }
-    
-    // Otherwise, try to breed this pal type with better passives
-    if (maxDepth <= 0) {
-        return { pal: bestOwnedPal, steps: [] };
-    }
-    
-    const parentCombinations = findParentsForTarget(targetType, pals);
-    
-    for (const combo of parentCombinations) {
-        const type1Pals = pals.filter(pal => pal.characterId === combo.parent1);
-        const type2Pals = pals.filter(pal => pal.characterId === combo.parent2);
-        
-        if (type1Pals.length === 0 || type2Pals.length === 0) continue;
-        
-        // Find the best parent combination for getting desired passives
-        let bestParent1: PalCardData | null = null;
-        let bestParent2: PalCardData | null = null;
-        let bestCombinedScore = 0;
-        
-        for (const parent1 of type1Pals) {
-            for (const parent2 of type2Pals) {
-                const combinedPassives = [...(parent1.passiveSkills || []), ...(parent2.passiveSkills || [])];
-                const uniquePassives = combinedPassives.filter((passive, index, self) => 
-                    index === self.findIndex(p => p.Id === passive.Id)
-                );
-                const matchingCount = uniquePassives.filter(passive =>
-                    desiredPassives.some(desired => desired.Id === passive.Id)
-                ).length;
-                
-                if (matchingCount > bestCombinedScore) {
-                    bestCombinedScore = matchingCount;
-                    bestParent1 = parent1;
-                    bestParent2 = parent2;
-                }
-            }
-        }
-        
-        if (bestParent1 && bestParent2 && bestCombinedScore > bestOwnedScore) {
-            const breedingStep: BreedingPair = {
-                parent1: bestParent1,
-                parent2: bestParent2,
-                resultCharacterId: targetType,
-                generation: 1,
-                expectedPassives: desiredPassives.filter(desired =>
-                    [...(bestParent1.passiveSkills || []), ...(bestParent2.passiveSkills || [])].some(passive => passive.Id === desired.Id)
-                ).map(passive => ({
-                    Id: passive.Id || '',
-                    Name: passive.Name || 'Unknown',
-                    Rating: passive.Rating || 0,
-                    Description: passive.Description || ''
-                })),
-                passiveProbability: calculatePassiveProbability(
-                    desiredPassives.filter(desired =>
-                        [...(bestParent1.passiveSkills || []), ...(bestParent2.passiveSkills || [])].some(passive => passive.Id === desired.Id)
-                    ), 
-                    bestParent1.passiveSkills || [], 
-                    bestParent2.passiveSkills || []
-                ),
-                workSpeedScore: 0
-            };
             
-            // Create virtual result pal
-            const resultPal: PalCardData = {
-                id: 'bred-' + targetType,
-                instanceId: 'bred',
-                name: 'Bred ' + targetType,
-                characterId: targetType,
-                passiveSkills: breedingStep.expectedPassives,
-                level: 30,
-                talentHP: Math.max(bestParent1.talentHP || 0, bestParent2.talentHP || 0),
-                talentShot: Math.max(bestParent1.talentShot || 0, bestParent2.talentShot || 0),
-                talentDefense: Math.max(bestParent1.talentDefense || 0, bestParent2.talentDefense || 0)
-            };
-            
-            return { pal: resultPal, steps: [breedingStep] };
+            if (secondParent) {
+                // Create route: bred steps -> parent1, then parent1 + parent2 -> target
+                const finalStep: BreedingStep = {
+                    parent1: parent1Route.target,
+                    parent2: secondParent,
+                    result: {
+                        characterId: targetCharacterId,
+                        gender: 'Neutral',
+                        level: 1,
+                        passives: [...new Set([...parent1Route.target.passives, ...secondParent.passives])]
+                    },
+                    generation: 0
+                };
+                
+                return {
+                    target: finalStep.result,
+                    steps: [...parent1Route.steps, finalStep]
+                };
+            }
         }
-    }
-    
-    return { pal: bestOwnedPal, steps: [] };
-}
-
-
-// Main method to get the best work speed route
-function getBestWorkSpeedRoute(
-    characterId: string,
-    playerId: string,
-    worldId: string,
-    pals: PalCardData[],
-    maxDepth: number = 3
-): WorkSpeedRoute {
-    console.log(`Starting WorkSpeed route calculation for ${characterId}`);
-    console.log(`Player has ${pals.length} pals`);
-    
-    const availablePassives = collectAvailableWorkSpeedPassives(pals);
-    console.log(`Found ${availablePassives.length} available work speed passives:`, availablePassives.map(p => `${p.passive.Name} (${p.count} sources)`));
-    
-    const optimalPassives = findOptimalPassiveCombination(availablePassives);
-    console.log(`Theoretical optimal passives:`, optimalPassives.map(p => p.Name));
-    
-    const breedingSteps = findBreedingRouteForTarget(characterId, pals, optimalPassives, Math.max(maxDepth, 5));
-    
-    // Calculate actual achievable results from the breeding steps
-    let actualFinalPassives: PassiveSkill[] = [];
-    let actualFinalWorkSpeed = 70; // Base work speed
-    
-    if (breedingSteps.length > 0) {
-        // Get passives from the final breeding step
-        const finalStep = breedingSteps[breedingSteps.length - 1];
-        actualFinalPassives = finalStep.expectedPassives || [];
-        actualFinalWorkSpeed = finalStep.workSpeedScore || 70;
         
-        console.log(`Actual achievable passives:`, actualFinalPassives.map(p => p.Name));
-        console.log(`Actual final work speed: ${actualFinalWorkSpeed}`);
-    } else {
-        // No breeding route found, check if we already own optimal version
-        const ownedTarget = pals.find(pal => pal.characterId?.toLowerCase() === characterId.toLowerCase());
-        if (ownedTarget && ownedTarget.passiveSkills) {
-            const ownedWorkSpeedPassives = ownedTarget.passiveSkills.filter(passive => 
-                optimalPassives.some(optimal => optimal.Id === passive.Id)
+        // Try to breed parent2 using our bred pal
+        const parent2Route = findDirectPath(bredPal, parent2, existingPals, bredPals, breedingRoutes, desiredPassives);
+        if (parent2Route) {
+            // Find parent1 from available pals
+            const firstParent = allAvailablePals.find(pal => 
+                pal.characterId === parent1 && 
+                (pal.gender !== 'Neutral' || parent2Route.target.gender !== 'Neutral')
             );
-            if (ownedWorkSpeedPassives.length > 0) {
-                actualFinalPassives = ownedWorkSpeedPassives;
-                actualFinalWorkSpeed = GetPalStats(characterId, 100, 100, 100, ownedWorkSpeedPassives, 30, 10).craftSpeed;
-                console.log(`Already own target with passives:`, actualFinalPassives.map(p => p.Name));
+            
+            if (firstParent) {
+                // Create route: bred steps -> parent2, then parent1 + parent2 -> target
+                const finalStep: BreedingStep = {
+                    parent1: firstParent,
+                    parent2: parent2Route.target,
+                    result: {
+                        characterId: targetCharacterId,
+                        gender: 'Neutral', 
+                        level: 1,
+                        passives: [...new Set([...firstParent.passives, ...parent2Route.target.passives])]
+                    },
+                    generation: 0
+                };
+                
+                return {
+                    target: finalStep.result,
+                    steps: [...parent2Route.steps, finalStep]
+                };
             }
         }
     }
+    
+    return null;
+}
+
+function createRoute(parent1: SimplePal | PalWithGenealogy, parent2: SimplePal | PalWithGenealogy, targetCharacterId: string, desiredPassives: string[]): BreedingRoute | null {
+    // Generate all possible passive combinations for this breeding
+    const possibleCombinations = generatePassiveCombinations(parent1.passives, parent2.passives);
+    
+    // Find the combination with the most desired passives and reasonable probability
+    let bestCombo: {passives: string[], probability: number} | null = null;
+    let maxDesiredCount = 0;
+    
+    for (const combo of possibleCombinations) {
+        const desiredCount = combo.passives.filter(p => desiredPassives.includes(p)).length;
+        if (desiredCount > maxDesiredCount && combo.probability > 0.01) {
+            maxDesiredCount = desiredCount;
+            bestCombo = combo;
+        }
+    }
+    
+    if (!bestCombo || maxDesiredCount === 0) return null;
+    
+    const targetPal: PalWithGenealogy = {
+        characterId: targetCharacterId,
+        gender: 'Neutral',
+        level: 1,
+        passives: bestCombo.passives,
+        probability: bestCombo.probability,
+        parent1: parent1 as PalWithGenealogy,
+        parent2: parent2 as PalWithGenealogy
+    };
+    
+    const step: BreedingStep = {
+        parent1: parent1 as PalWithGenealogy,
+        parent2: parent2 as PalWithGenealogy,
+        result: targetPal,
+        generation: 0
+    };
+    
+    // Include breeding steps from parent genealogies
+    const parent1Steps = 'parent1' in parent1 && 'parent2' in parent1 ? buildBreedingSteps(parent1) : [];
+    const parent2Steps = 'parent1' in parent2 && 'parent2' in parent2 ? buildBreedingSteps(parent2) : [];
     
     return {
-        targetCharacterId: characterId,
-        finalWorkSpeed: Math.round(actualFinalWorkSpeed),
-        breedingSteps: breedingSteps,
-        totalGenerations: breedingSteps.length,
-        requiredPassives: actualFinalPassives // Use actual achievable passives, not theoretical optimal
+        target: targetPal,
+        steps: [...parent1Steps, ...parent2Steps, step]
     };
+}
+
+function buildBreedingSteps(pal: PalWithGenealogy, generation: number = 0): BreedingStep[] {
+    const steps: BreedingStep[] = [];
+    
+    if (pal.parent1 && pal.parent2) {
+        // Recursively build steps for parents first
+        const parent1Steps = buildBreedingSteps(pal.parent1, generation + 1);
+        const parent2Steps = buildBreedingSteps(pal.parent2, generation + 1);
+        
+        // Add parent steps first
+        steps.push(...parent1Steps);
+        steps.push(...parent2Steps);
+        
+        // Add the current breeding step
+        steps.push({
+            parent1: pal.parent1,
+            parent2: pal.parent2,
+            result: pal,
+            generation: generation
+        });
+    }
+    
+    return steps;
+}
+
+function findBreedingRoute(characterId: string, passives: PassiveSkill[], pals: PalCardData[]) {
+    const breedingRoutes = getBreedingCombinationsMap();
+    const palsWithPassives = pals.filter(a=> a.passiveSkills.some(ps=> passives.some(p=> p.name === ps.name)));
+    console.log("Passives parent:", palsWithPassives.map(a=> a.characterId));
+    const ascendants = new Set<string>();
+    for(let breedingRoute of breedingRoutes.get(characterId)) {
+        console.log("Route : ", breedingRoute);
+        ascendants.add(breedingRoute.parent1);
+        ascendants.add(breedingRoute.parent2);
+        if(palsWithPassives.map(a=> a.characterId).includes(breedingRoute.parent1) || palsWithPassives.map(a=> a.characterId).includes(breedingRoute.parent2)){
+
+
+
+            return true;
+        }
+    }
+    //Else
+    for(let ascendant of ascendants) {
+        var found = findBreedingRoute(ascendant, passives, pals);
+        if(found) {
+            return true;
+        }
+    }
 }
 
 export const GET: RequestHandler = async ({ params, locals, url }) => {
     try {
         const { id, player_instance_id } = params;
-        const targetCharacterId = url.searchParams.get('characterId');
-        const maxDepthParam = url.searchParams.get('maxDepth');
-        const maxDepth = maxDepthParam ? parseInt(maxDepthParam) : 3;
         const saveWatcher = locals.saveWatcher;
-
         if (!saveWatcher) {
             return json({ error: 'Save file watcher not available' }, { status: 503 });
         }
-
-        if (!targetCharacterId) {
-            return json({ error: 'characterId parameter is required' }, { status: 400 });
-        }
-
         const serverSave = saveWatcher.getServerSave(id);
 
         if (!serverSave) {
-            return error(404, `Server ${id} not found`);
+            return json({ error: `Server ${id} not found` }, { status: 404 });
         }
 
         const [playerId, instanceId] = splitGuids(player_instance_id);
         const pWorld = serverSave.Characters.find(a=> a.PlayerId === playerId && a.InstanceId === instanceId) as Player;
         const pSave = saveWatcher.getPlayers(id).find(a=> a.PlayerUid === playerId && a.InstanceId === instanceId);
+        const pals = getPlayerPals(pWorld, pSave, serverSave).map(p => ({
+            characterId: p.characterId,
+            gender: p.gender.replace('EPalGenderType::','') as "Male" | "Female" | "Neutral",
+            passives: p.passiveSkills.map(a=> a.Id),
+            level: p.level
+        }));
+        
+        // Get desired character and passives from query params
+        const targetCharacter = url.searchParams.get('characterId');
+        const desiredPassives = url.searchParams.get('passives')?.split(',') || collectAvailableWorkSpeedPassives(getPlayerPals(pWorld, pSave, serverSave)).map(a=> a.passive.Id);
+        if(!targetCharacter) {
+            return json({ error: 'Must specify the character ID' }, { status: 400 });
+        }
+        const startTime = Date.now();
+        console.log(`Finding breeding route for ${targetCharacter} with passives: ${desiredPassives.join(', ')}`);
+        
+        // Step 1: Generate all possible breeding combinations with desired passives
+        const step1Start = Date.now();
+        const discoveredPals = findBreedingRoute2(targetCharacter, desiredPassives, pals);
+        const step1Time = Date.now() - step1Start;
+        console.log(`Step 1 (Discovery): ${step1Time}ms - Found ${discoveredPals.length} discovered pals`);
+        
+        // Step 2: Find routes from discovered pals to target character
+        const step2Start = Date.now();
+        const routesToTarget = findRoutesToTarget(targetCharacter, pals, discoveredPals, desiredPassives);
+        const step2Time = Date.now() - step2Start;
+        console.log(`Step 2 (Pathfinding): ${step2Time}ms - Found ${routesToTarget.length} routes`);
+        
+        // Step 3: Filter routes with desired passives
+        const step3Start = Date.now();
+        
+        if (routesToTarget.length === 0) {
+            return json({ 
+                error: `No breeding routes found for ${targetCharacter} with the specified passives`,
+                discoveredPals: discoveredPals.length,
+                targetCharacter,
+                desiredPassives
+            }, { status: 404 });
+        }
+        
+        // Filter routes that actually have desired passives
+        const routesWithDesiredPassives = routesToTarget.filter(route => {
+            const desiredPassivesInTarget = route.target.passives.filter(passive => 
+                desiredPassives.includes(passive)
+            );
+            return desiredPassivesInTarget.length > 0;
+        });
+        const step3Time = Date.now() - step3Start;
+        console.log(`Step 3 (Filtering): ${step3Time}ms - ${routesWithDesiredPassives.length} valid routes after filtering`);
+        
+        // Convert to WorkSpeedRoute format that frontend expects
+        if (routesWithDesiredPassives.length === 0) {
+            // Convert passive IDs to actual passive data for empty case too
+            const getPassiveData = (passiveId: string) => {
+                try {
+                    const passiveData = getPassive(passiveId);
+                    return {
+                        Id: passiveId,
+                        Name: passiveData?.Name || passiveId,
+                        Rating: passiveData?.Rank || 0, // Use Rating instead of Rank
+                        Description: passiveData?.Description || '',
+                        Buff: passiveData?.Buff || {}
+                    };
+                } catch {
+                    return { 
+                        Id: passiveId, 
+                        Name: passiveId, 
+                        Rating: 0,
+                        Description: '',
+                        Buff: {} 
+                    };
+                }
+            };
 
-        if (!pWorld) {
-            return error(404, `Player not found with PlayerId: ${playerId} and InstanceId: ${instanceId}`);
+            return json({
+                targetCharacterId: targetCharacter,
+                finalWorkSpeed: 0,
+                breedingSteps: [],
+                totalGenerations: 0,
+                requiredPassives: desiredPassives.map(getPassiveData)
+            });
         }
 
-        if (!pSave) {
-            return error(404, `Player save not found with PlayerUid: ${playerId} and InstanceId: ${instanceId}`);
-        }
+        // Take the best route (first one after sorting)
+        const bestRoute = routesWithDesiredPassives[0];
+        const desiredPassivesInTarget = bestRoute.target.passives.filter(passive => 
+            desiredPassives.includes(passive)
+        );
 
-        const pals = getPlayerPals(pWorld, pSave, serverSave);
-        const validPals = pals.filter(pal => pal.characterId !== null);
+        // Convert passive IDs to actual passive data with proper calculation
+        const getPassiveData = (passiveId: string) => {
+            try {
+                return getDisplayedPassive(passiveId);
 
-        const route = getBestWorkSpeedRoute(targetCharacterId, playerId, id, validPals, maxDepth);
+            } catch {
+                return { 
+                    Id: passiveId, 
+                    Name: passiveId, 
+                    Rating: 0,
+                    Description: '',
+                    Buff: {} 
+                };
+            }
+        };
 
-        return json(route);
+        // Helper function to get display name
+        const getDisplayName = (characterId: string): string => {
+            try {
+                const palData = getPalData(characterId);
+                return palData?.Name || characterId;
+            } catch {
+                return characterId;
+            }
+        };
+
+        // Convert steps to BreedingPair format
+        const breedingSteps = bestRoute.steps.map((step, index) => {
+            const expectedPassives = step.result.passives.filter(p => desiredPassives.includes(p))
+                .map(getPassiveData);
+            
+            // Find the parent pal data for more complete information
+            const parent1Data = pals.find(p => p.characterId === step.parent1.characterId) || step.parent1;
+            const parent2Data = pals.find(p => p.characterId === step.parent2.characterId) || step.parent2;
+
+            // Calculate work speed score based on actual craft speed buffs
+            const workSpeedScore = expectedPassives.reduce((total, passive) => {
+                const craftSpeedBuff = passive.Buff?.b_CraftSpeed || 0;
+                return total + (craftSpeedBuff * 100);
+            }, 0);
+
+            return {
+                parent1: {
+                    characterId: step.parent1.characterId,
+                    name: getDisplayName(step.parent1.characterId),
+                    level: parent1Data.level || step.parent1.level || 1,
+                    gender: parent1Data.gender || step.parent1.gender || 'Neutral',
+                    passiveSkills: step.parent1.passives.map(getPassiveData)
+                },
+                parent2: {
+                    characterId: step.parent2.characterId,
+                    name: getDisplayName(step.parent2.characterId),
+                    level: parent2Data.level || step.parent2.level || 1,
+                    gender: parent2Data.gender || step.parent2.gender || 'Neutral',
+                    passiveSkills: step.parent2.passives.map(getPassiveData)
+                },
+                resultCharacterId: step.result.characterId,
+                generation: step.generation,
+                expectedPassives,
+                passiveProbability: step.result.probability || Math.pow(0.5, expectedPassives.length), // Use calculated probability
+                workSpeedScore: Math.round(workSpeedScore)
+            };
+        });
+
+        // Calculate final work speed based on actual craft speed buffs
+        const finalWorkSpeedBuff = desiredPassivesInTarget.reduce((total, passiveId) => {
+            try {
+                const passiveData = getPassive(passiveId);
+                return total + (passiveData?.Buff?.b_CraftSpeed || 0);
+            } catch {
+                return total;
+            }
+        }, 0);
+        
+        const finalWorkSpeed = Math.round(100 + (finalWorkSpeedBuff * 100)); // Base 100 + buff percentage
+
+        // Step 4: Data conversion and response preparation
+        const step4Time = Date.now() - step3Start - step3Time;
+        const totalTime = Date.now() - startTime;
+        
+        console.log(`Step 4 (Response prep): ${step4Time}ms`);
+        console.log(`Total processing time: ${totalTime}ms (${(totalTime / 1000).toFixed(2)}s)`);
+        console.log(`Performance breakdown: Discovery ${Math.round(step1Time/totalTime*100)}% | Pathfinding ${Math.round(step2Time/totalTime*100)}% | Filtering ${Math.round(step3Time/totalTime*100)}% | Response ${Math.round(step4Time/totalTime*100)}%`);
+
+        return json({
+            targetCharacterId: targetCharacter,
+            finalWorkSpeed,
+            breedingSteps,
+            totalGenerations: breedingSteps.length,
+            requiredPassives: desiredPassivesInTarget.map(getPassiveData)
+        });
 
     } catch (err) {
         console.error(`Error getting breeding route for ${params.id}:`, err);
-        return error(500, 'Failed to calculate breeding route');
+        return json({ error: 'Failed to calculate breeding route' }, { status: 500 });
     }
 };

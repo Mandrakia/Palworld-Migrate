@@ -4,36 +4,17 @@ import {Pal} from "$save-edit/models/Pal";
 import type {CharacterCardData, FullPlayerCardData, PlayerCardData} from '$lib/CharacterCardData';
 import {toFullPlayerCard} from "$lib/mappers";
 import type {Player} from "$save-edit/models/Player";
+import {splitGuids} from "$lib/guidUtils";
 
-function splitGuids(encoded: string): [string, string] {
-    // Parse base36 string as BigInt
-    let combined = 0n;
-    for (let i = 0; i < encoded.length; i++) {
-        const digit = encoded.charCodeAt(i);
-        const value = digit >= 48 && digit <= 57 ? digit - 48 : digit - 87; // 0-9, a-z
-        combined = combined * 36n + BigInt(value);
-    }
 
-    const hex = combined.toString(16).padStart(64, '0');
-
-    const guid1 = hex.slice(0, 32).replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5');
-    const guid2 = hex.slice(32).replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5');
-
-    return [guid1, guid2];
-}
 
 export const GET: RequestHandler = async ({ params, locals, url }) => {
     try {
         const { id, player_instance_id } = params;
-        const version = url.searchParams.get('version') || 'Live';
         const saveWatcher = locals.saveWatcher;
 
         if (!saveWatcher) {
             return json({ error: 'Save file watcher not available' }, { status: 503 });
-        }
-
-        if (version !== 'Live') {
-            return json({ error: 'Backup versions not yet supported' }, { status: 501 });
         }
 
         const serverSave = saveWatcher.getServerSave(id);
