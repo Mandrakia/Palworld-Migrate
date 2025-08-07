@@ -5,13 +5,97 @@
 	import { getWorkIcons } from '$lib/workSuitabilityUtils';
 	import PassiveSkill from '$lib/PassiveSkill.svelte';
 	import CombinationDetails from '$lib/CombinationDetails.svelte';
-	import type { BreedingSource } from '$lib/interfaces/index.js';
+	import CharacterAutocomplete from '$lib/CharacterAutocomplete.svelte';
+	import type { BreedingSource, WorkSpeedRoute } from '$lib/interfaces/index.js';
+	import { onMount } from 'svelte';
 
 	interface Props {
 		data: PageData;
 	}
 
 	let { data }: Props = $props();
+
+	// Goal management
+	let goals = $state<string[]>([]);
+	let goalRoutes = $state<Record<string, WorkSpeedRoute>>({});
+	let loadingGoals = $state<Set<string>>(new Set());
+	let expandedGoals = $state(new Set<string>());
+
+	// Load goals from localStorage on mount
+	onMount(() => {
+		const storageKey = `breeding-goals-${data.worldId}-${data.combinedId}`;
+		const savedGoals = localStorage.getItem(storageKey);
+		if (savedGoals) {
+			goals = JSON.parse(savedGoals);
+			// Load routes for existing goals
+			for (const goal of goals) {
+				loadGoalRoute(goal);
+			}
+		}
+	});
+
+	// Save goals to localStorage
+	function saveGoals() {
+		const storageKey = `breeding-goals-${data.worldId}-${data.combinedId}`;
+		localStorage.setItem(storageKey, JSON.stringify(goals));
+	}
+
+	// Add a new goal
+	function addGoal(characterId: string) {
+		if (!characterId || goals.includes(characterId)) return;
+		
+		goals = [...goals, characterId];
+		saveGoals();
+		loadGoalRoute(characterId);
+	}
+
+	// Handle character selection from autocomplete
+	function handleCharacterSelect(characterId: string, character: any) {
+		addGoal(characterId);
+	}
+
+	// Remove a goal
+	function removeGoal(characterId: string) {
+		goals = goals.filter(g => g !== characterId);
+		delete goalRoutes[characterId];
+		goalRoutes = { ...goalRoutes };
+		saveGoals();
+	}
+
+	// Load breeding route for a goal
+	async function loadGoalRoute(characterId: string) {
+		loadingGoals.add(characterId);
+		loadingGoals = new Set(loadingGoals);
+
+		try {
+			const response = await fetch(`/api/worlds/${data.worldId}/characters/${data.combinedId}/breeding-route?characterId=${encodeURIComponent(characterId)}&maxDepth=3`);
+			if (response.ok) {
+				const route: WorkSpeedRoute = await response.json();
+				goalRoutes[characterId] = route;
+				goalRoutes = { ...goalRoutes };
+			} else {
+				console.error(`Failed to load route for ${characterId}`);
+			}
+		} catch (error) {
+			console.error(`Error loading route for ${characterId}:`, error);
+		} finally {
+			loadingGoals.delete(characterId);
+			loadingGoals = new Set(loadingGoals);
+		}
+	}
+
+	// Toggle goal expansion
+	function toggleGoal(characterId: string) {
+		console.log('Toggling goal:', characterId, 'currently expanded:', expandedGoals.has(characterId));
+		const newExpandedGoals = new Set(expandedGoals);
+		if (newExpandedGoals.has(characterId)) {
+			newExpandedGoals.delete(characterId);
+		} else {
+			newExpandedGoals.add(characterId);
+		}
+		expandedGoals = newExpandedGoals;
+		console.log('After toggle:', expandedGoals);
+	}
 
 	// Expanded state for result cards
 	let expandedResults = $state(new Set<string>());
@@ -209,6 +293,275 @@
 			</div>
 		</div>
 
+		<!-- Goals Section -->
+		<div class="mb-8 bg-slate-800 border border-slate-700 rounded-lg overflow-hidden">
+			<div class="p-6 border-b border-slate-700">
+				<h2 class="text-xl font-semibold text-white mb-4">🎯 WorkSpeed Goals</h2>
+				
+				<!-- Add Goal Input -->
+				<div class="mb-6">
+					<CharacterAutocomplete 
+						placeholder="Search and select a character for WorkSpeed optimization..."
+						onSelect={handleCharacterSelect}
+					/>
+					<div class="text-xs text-slate-400 mt-2">
+						Select a character to see the optimal breeding route for maximum WorkSpeed
+					</div>
+				</div>
+
+				<!-- Goals List -->
+				{#if goals.length > 0}
+					<div class="space-y-4">
+						{#each goals as goalId}
+							<div class="bg-slate-700/30 rounded-lg overflow-hidden">
+								<!-- Goal Header -->
+								<div 
+									class="p-4 cursor-pointer hover:bg-slate-700/50 transition-colors flex items-center justify-between"
+									onclick={() => toggleGoal(goalId)}
+								>
+									<div class="flex items-center space-x-4">
+										<div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center overflow-hidden">
+											<img 
+												src={getPalIconUrl(goalId)}
+												alt={goalId}
+												class="w-full h-full object-cover rounded-full"
+												onerror={(event) => {
+													const target = event.target as HTMLImageElement;
+													if (target) {
+														target.style.display = 'none';
+														target.parentElement!.innerHTML = '🎯';
+													}
+												}}
+											/>
+										</div>
+										<div>
+											<h3 class="text-white font-semibold">{goalId}</h3>
+											{#if loadingGoals.has(goalId)}
+												<div class="text-blue-400 text-sm">Loading route...</div>
+											{:else if goalRoutes[goalId]}
+												<div class="text-green-400 text-sm">
+													{goalRoutes[goalId].totalGenerations} step(s) • Work Speed: {goalRoutes[goalId].finalWorkSpeed}
+												</div>
+											{:else}
+												<div class="text-red-400 text-sm">No route found</div>
+											{/if}
+										</div>
+									</div>
+
+									<div class="flex items-center space-x-2">
+										<button
+											onclick={(e) => { 
+												e.stopPropagation(); 
+												e.preventDefault();
+												removeGoal(goalId); 
+											}}
+											class="text-red-400 hover:text-red-300 p-2 hover:bg-red-900/20 rounded"
+											title="Remove goal"
+										>
+											<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+											</svg>
+										</button>
+										<svg 
+											class="w-5 h-5 text-slate-400 transition-transform {expandedGoals.has(goalId) ? 'rotate-180' : ''}"
+											fill="none" 
+											stroke="currentColor" 
+											viewBox="0 0 24 24"
+										>
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+										</svg>
+									</div>
+								</div>
+
+								<!-- Expanded Goal Details -->
+								{#if expandedGoals.has(goalId)}
+									{#if goalRoutes[goalId]}
+										{@const route = goalRoutes[goalId]}
+									<div class="border-t border-slate-700 p-6">
+										<!-- Final Stats -->
+										<div class="mb-6 bg-slate-800/50 rounded-lg p-4">
+											<h4 class="text-white font-semibold mb-3">🎯 Target Result</h4>
+											<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+												<div class="text-center">
+													<div class="text-yellow-400 text-xs">🔨 Work Speed</div>
+													<div class="text-white font-bold text-lg">{route.finalWorkSpeed}</div>
+												</div>
+											</div>
+											
+											<!-- Required Passives -->
+											{#if route.requiredPassives?.length > 0}
+												<div>
+													<div class="text-slate-400 text-xs mb-2">Required Passives:</div>
+													<div class="flex flex-wrap gap-2">
+														{#each route.requiredPassives as skill}
+															{#if skill && skill.Name}
+																<PassiveSkill 
+																	{skill} 
+																	size="sm"
+																	showDescription={false}
+																/>
+															{/if}
+														{/each}
+													</div>
+												</div>
+											{/if}
+										</div>
+
+										<!-- Breeding Steps -->
+										{#if route.breedingSteps?.length > 0}
+											<div class="space-y-4">
+												<h4 class="text-white font-semibold">📋 Breeding Steps ({route.breedingSteps.length})</h4>
+												{#each route.breedingSteps as step, index}
+													<div class="bg-slate-800/50 rounded-lg p-4">
+														<div class="flex items-center justify-between mb-3">
+															<div class="text-slate-400 text-sm">Step {index + 1} (Gen {step.generation})</div>
+															<div class="text-green-400 text-sm">
+																{Math.round(step.passiveProbability * 100)}% chance
+															</div>
+														</div>
+
+														<div class="grid grid-cols-1 lg:grid-cols-5 gap-4 items-center">
+															<!-- Parent 1 -->
+															<div class="flex items-center space-x-3">
+																<div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-full flex items-center justify-center overflow-hidden">
+																	<img 
+																		src={getPalIconUrl(step.parent1.characterId)} 
+																		alt={step.parent1.name}
+																		class="w-full h-full object-cover rounded-full"
+																		onerror={(event) => {
+																			const target = event.target as HTMLImageElement;
+																			if (target) {
+																				target.style.display = 'none';
+																				target.parentElement!.innerHTML = '🐾';
+																			}
+																		}}
+																	/>
+																</div>
+																<div class="min-w-0">
+																	<div class="text-white font-medium text-sm truncate">
+																		{step.parent1.name}
+																	</div>
+																	<div class="text-xs text-slate-400">
+																		{step.parent1.characterId} • Lv.{step.parent1.level}
+																	</div>
+																</div>
+															</div>
+
+															<!-- + Symbol -->
+															<div class="flex justify-center">
+																<span class="text-slate-500 text-2xl">+</span>
+															</div>
+
+															<!-- Parent 2 -->
+															<div class="flex items-center space-x-3">
+																<div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-full flex items-center justify-center overflow-hidden">
+																	<img 
+																		src={getPalIconUrl(step.parent2.characterId)} 
+																		alt={step.parent2.name}
+																		class="w-full h-full object-cover rounded-full"
+																		onerror={(event) => {
+																			const target = event.target as HTMLImageElement;
+																			if (target) {
+																				target.style.display = 'none';
+																				target.parentElement!.innerHTML = '🐾';
+																			}
+																		}}
+																	/>
+																</div>
+																<div class="min-w-0">
+																	<div class="text-white font-medium text-sm truncate">
+																		{step.parent2.name}
+																	</div>
+																	<div class="text-xs text-slate-400">
+																		{step.parent2.characterId} • Lv.{step.parent2.level}
+																	</div>
+																</div>
+															</div>
+
+															<!-- Arrow -->
+															<div class="flex justify-center">
+																<svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																	<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+																</svg>
+															</div>
+
+															<!-- Result -->
+															<div class="flex items-center space-x-3">
+																<div class="w-10 h-10 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-full flex items-center justify-center overflow-hidden">
+																	<img 
+																		src={getPalIconUrl(step.resultCharacterId)} 
+																		alt={step.resultCharacterId}
+																		class="w-full h-full object-cover rounded-full"
+																		onerror={(event) => {
+																			const target = event.target as HTMLImageElement;
+																			if (target) {
+																				target.style.display = 'none';
+																				target.parentElement!.innerHTML = '🥚';
+																			}
+																		}}
+																	/>
+																</div>
+																<div class="min-w-0">
+																	<div class="text-white font-medium text-sm truncate">
+																		{step.resultCharacterId}
+																	</div>
+																	<div class="text-xs text-green-400">
+																		Work Speed: {step.workSpeedScore}
+																	</div>
+																</div>
+															</div>
+														</div>
+
+														<!-- Expected Passives -->
+														{#if step.expectedPassives?.length > 0}
+															<div class="mt-3 pt-3 border-t border-slate-700">
+																<div class="text-slate-400 text-xs mb-2">Expected Passives:</div>
+																<div class="flex flex-wrap gap-1">
+																	{#each step.expectedPassives as skill}
+																		{#if skill && skill.Name}
+																			<PassiveSkill 
+																				{skill} 
+																				size="xs"
+																				showDescription={false}
+																			/>
+																		{/if}
+																	{/each}
+																</div>
+															</div>
+														{/if}
+													</div>
+												{/each}
+											</div>
+										{:else}
+											<div class="text-center py-6 text-slate-400">
+												No breeding steps required - you may already have optimal {goalId}
+											</div>
+										{/if}
+									</div>
+									{:else}
+										<div class="border-t border-slate-700 p-6">
+											<div class="text-center py-6 text-slate-400">
+												{#if loadingGoals.has(goalId)}
+													<div class="text-blue-400">Loading breeding route...</div>
+												{:else}
+													<div class="text-red-400">No route found or failed to load</div>
+												{/if}
+											</div>
+										</div>
+									{/if}
+								{/if}
+							</div>
+						{/each}
+					</div>
+				{:else}
+					<div class="text-center py-8 text-slate-400">
+						<div class="text-lg mb-2">No goals set</div>
+						<div class="text-sm">Add a character ID above to see the optimal WorkSpeed breeding route</div>
+					</div>
+				{/if}
+			</div>
+		</div>
+
 		<!-- Breeding Results -->
 		{#if filteredAndSortedResults().length > 0}
 			<div class="space-y-4">
@@ -258,7 +611,7 @@
 											</span>
 										</div>
 										<!-- Work Suitabilities -->
-										{#if getWorkIcons(result.workSuitabilities).length > 0}
+										{#if result.workSuitabilities && getWorkIcons(result.workSuitabilities).length > 0}
 											{@const workIcons = getWorkIcons(result.workSuitabilities)}
 											<div class="flex flex-wrap gap-2 mt-2">
 												{#each workIcons as work}
