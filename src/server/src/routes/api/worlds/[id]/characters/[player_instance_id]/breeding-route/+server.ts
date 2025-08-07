@@ -283,7 +283,6 @@ function getCombinations<T>(array: T[], k: number): T[][] {
 
 function findBreedingRoute2(characterId: string, passives: string[], pals: SimplePal[]) {
     const algorithmStart = Date.now();
-    const breedingRoutes = getBreedingCombinationsMap();
     const palsWithPassives = pals.filter(a=> a.passives.some(ps=> passives.some(p=> p === ps)));
     
     console.log(`  Starting with ${palsWithPassives.length} pals that have desired passives (from ${pals.length} total)`);
@@ -688,7 +687,8 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
         
         // Get desired character and passives from query params
         const targetCharacter = url.searchParams.get('characterId');
-        const desiredPassives = url.searchParams.get('passives')?.split(',') || collectAvailableWorkSpeedPassives(getPlayerPals(pWorld, pSave, serverSave)).map(a=> a.passive.Id);
+        const desiredPassives = url.searchParams.get('passives')?.split(',') || collectAvailableWorkSpeedPassives(getPlayerPals(pWorld, pSave, serverSave)).slice(0,4).map(a=> a.passive.Id);
+        console.log(desiredPassives);
         if(!targetCharacter) {
             return json({ error: 'Must specify the character ID' }, { status: 400 });
         }
