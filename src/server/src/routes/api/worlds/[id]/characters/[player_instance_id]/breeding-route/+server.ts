@@ -148,7 +148,9 @@ export interface SimplePal {
     characterId: string,
     gender: "Male" | "Female" | "Neutral",
     passives: string[],
-    level: number
+    level: number,
+    playerId?: string,
+    instanceId?: string
 }
 export interface PalWithGenealogy extends SimplePal{
     parent1?: PalWithGenealogy,
@@ -678,7 +680,10 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
             characterId: p.characterId,
             gender: p.gender.replace('EPalGenderType::','') as "Male" | "Female" | "Neutral",
             passives: p.passiveSkills.map(a=> a.Id),
-            level: p.level
+            level: p.level,
+            playerId: p.id,
+            instanceId: p.instanceId,
+            name : p.name
         }));
         
         // Get desired character and passives from query params
@@ -783,7 +788,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
         const getDisplayName = (characterId: string): string => {
             try {
                 const palData = getPalData(characterId);
-                return palData?.Name || characterId;
+                return palData?.OverrideNameTextID || characterId;
             } catch {
                 return characterId;
             }
@@ -795,8 +800,8 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
                 .map(getPassiveData);
             
             // Find the parent pal data for more complete information
-            const parent1Data = pals.find(p => p.characterId === step.parent1.characterId) || step.parent1;
-            const parent2Data = pals.find(p => p.characterId === step.parent2.characterId) || step.parent2;
+            const parent1Data = pals.find(p => p.playerId === step.parent1.playerId && p.instanceId === step.parent1.instanceId && p.characterId === step.parent1.characterId) || step.parent1;
+            const parent2Data = pals.find(p => p.playerId === step.parent2.playerId && p.instanceId === step.parent2.instanceId && p.characterId === step.parent2.characterId) || step.parent2;
 
             // Calculate work speed score based on actual craft speed buffs
             const workSpeedScore = expectedPassives.reduce((total, passive) => {
@@ -807,14 +812,14 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
             return {
                 parent1: {
                     characterId: step.parent1.characterId,
-                    name: getDisplayName(step.parent1.characterId),
+                    name: parent1Data.name || getDisplayName(step.parent1.characterId),
                     level: parent1Data.level || step.parent1.level || 1,
                     gender: parent1Data.gender || step.parent1.gender || 'Neutral',
                     passiveSkills: step.parent1.passives.map(getPassiveData)
                 },
                 parent2: {
                     characterId: step.parent2.characterId,
-                    name: getDisplayName(step.parent2.characterId),
+                    name: parent2Data.name || getDisplayName(step.parent2.characterId),
                     level: parent2Data.level || step.parent2.level || 1,
                     gender: parent2Data.gender || step.parent2.gender || 'Neutral',
                     passiveSkills: step.parent2.passives.map(getPassiveData)
