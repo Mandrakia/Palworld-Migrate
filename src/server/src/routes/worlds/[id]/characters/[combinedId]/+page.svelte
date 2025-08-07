@@ -199,6 +199,18 @@
 					valueA = a.talentDefense || 0;
 					valueB = b.talentDefense || 0;
 					break;
+                case 'attack':
+                    valueA = a.endStats.attack;
+                    valueB = b.endStats.attack;
+                    break;
+                case 'defense':
+                    valueA = a.endStats.defense;
+                    valueB = b.endStats.defense;
+                    break;
+                case 'hp':
+                    valueA = a.endStats.hp;
+                    valueB = b.endStats.hp;
+                    break;
 				default:
 					return 0;
 			}
@@ -469,6 +481,9 @@
 									<option value="talentHP">HP Talent</option>
 									<option value="talentShot">Attack Talent</option>
 									<option value="talentDefense">Defense Talent</option>
+                                    <option value="attack">Attack</option>
+                                    <option value="defense">Defense</option>
+                                    <option value="hp">Hp</option>
 								</select>
 							</div>
 
@@ -886,8 +901,7 @@
 								</div>
 							{/if}
                             <!-- Final stats -->
-                            {#if pal.characterId && pal.tribe}
-                                {@const stats = GetPalStats(pal.tribe, pal.talentHP, pal.talentShot, pal.talentDefense, pal.passiveSkills, pal.level, pal.friendshipRank)}
+                            {#if pal.endStats}
                             <div class="space-y-2 mb-4">
                                 <div class="text-xs text-slate-400 uppercase tracking-wide flex items-center justify-between">
                                     <span>Stats</span>
@@ -896,26 +910,26 @@
                                 <div class="w-full">
                                     <div class="bg-slate-700 hover:bg-slate-600 rounded p-2 text-center transition-colors cursor-pointer">
                                         <div class="text-red-400 text-xs">❤️ HP</div>
-                                        <div class="text-white font-semibold">{stats.hp}</div>
+                                        <div class="text-white font-semibold">{pal.endStats.hp}</div>
                                     </div>
                                 </div>
                                 <!-- ATK, DEF, CRAFTSPEED - Three columns -->
                                 <div class="grid grid-cols-3 gap-2">
                                     <div class="bg-slate-700 hover:bg-slate-600 rounded p-2 text-center transition-colors cursor-pointer">
                                         <div class="text-orange-400 text-xs">⚔️ ATK</div>
-                                        <div class="text-white font-semibold">{stats.attack}</div>
+                                        <div class="text-white font-semibold">{pal.endStats.attack}</div>
                                     </div>
                                     <div class="bg-slate-700 hover:bg-slate-600 rounded p-2 text-center transition-colors cursor-pointer">
                                         <div class="text-blue-400 text-xs">🛡️ DEF</div>
-                                        <div class="text-white font-semibold">{stats.defense}</div>
+                                        <div class="text-white font-semibold">{pal.endStats.defense}</div>
                                     </div>
                                     <div class="bg-slate-700 hover:bg-slate-600 rounded p-2 text-center transition-colors cursor-pointer">
                                         <div class="text-yellow-400 text-xs">🔨 CRAFT</div>
-                                        <div class="text-white font-semibold">{stats.craftSpeed || 100}</div>
+                                        <div class="text-white font-semibold">{pal.endStats.craftSpeed || 100}</div>
                                     </div>
                                 </div>
                             </div>
-                            {/if}
+                                {/if}
 							<!-- Passive Skills -->
 							{#if pal.passiveSkills && pal.passiveSkills.length > 0}
 								<div class="mb-4">

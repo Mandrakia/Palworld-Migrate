@@ -7,6 +7,7 @@ import {getPalData, cleanElementType, cleanSizeType, cleanTribe, Buff, getPassiv
 import type {Guild} from "$save-edit/models/Guild";
 import friendshipData from "../../../databases/friendship_ranks.json";
 import type {FriendshipRank, PassiveSkill} from "$lib/interfaces/";
+import {GetPalStats} from "$lib/interfaces/";
 
 export function toPlayerCard(pWorld: Player, pSave: CharacterSave, serverSave: ServerSave) : PlayerCardData{
     const pals = serverSave.Characters.filter(a => a instanceof Pal) as Pal[];
@@ -77,6 +78,8 @@ export function toPalCard(pWorld: Pal, serverSave: ServerSave, isCamp: boolean =
 
 
     return {
+        currentStats : palData ? GetPalStats(cleanTribe(palData.Tribe), pWorld.TalentHP, pWorld.TalentShot, pWorld.TalentDefense, displayedPassives, pWorld.Level || 1, GetFriendShipRank(pWorld.FriendshipPoint)) : undefined,
+        endStats : palData ? GetPalStats(cleanTribe(palData.Tribe), pWorld.TalentHP, pWorld.TalentShot, pWorld.TalentDefense, displayedPassives,50, 10) : undefined,
         characterId: cleanCharacterId,
         isInCamp : isCamp,
         type: "pal",
