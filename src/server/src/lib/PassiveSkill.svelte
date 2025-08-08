@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { PassiveSkill, PassiveSkillProps } from '$lib/interfaces/index.js';
+	import type { PassiveSkillProps } from '$lib/interfaces';
 
 	let { 
 		skill, 
@@ -33,7 +33,7 @@
 
 	function handleClick() {
 		if (clickable && onClick) {
-			onClick(safeSkill.Name);
+			onClick(skill.Name);
 		}
 	}
 
@@ -67,14 +67,6 @@
 
 	// Ensure size is valid, default to 'md' if not
 	const validSize = size && sizeClasses[size] ? size : 'md';
-	
-	// Ensure skill has required properties
-	const safeSkill = {
-		Name: skill?.Name || 'Unknown',
-		Rating: skill?.Rating ?? 0,
-		Description: skill?.Description || '',
-		Id: skill?.Id || ''
-	};
 </script>
 
 <style>
@@ -85,25 +77,25 @@
 </style>
 
 <div
-	class="flex items-start space-x-2 {sizeClasses[validSize].container} rounded border transition-colors {getPassiveSkillRatingColor(safeSkill.Rating)} {clickable ? 'cursor-pointer hover:brightness-110' : ''}"
+	class="flex items-start space-x-2 {sizeClasses[validSize].container} rounded border transition-colors {getPassiveSkillRatingColor(skill.Rating)} {clickable ? 'cursor-pointer hover:brightness-110' : ''}"
 	onclick={handleClick}
-	title={clickable ? `Click to filter by ${safeSkill.Name}` : safeSkill.Description}
+	title={clickable ? `Click to filter by ${skill.Name}` : skill.Description}
 	role={clickable ? 'button' : 'none'}
 	tabindex={clickable ? 0 : -1}
 >
 	<div class="flex-shrink-0">
-		{#if getPassiveSkillRatingIcon(safeSkill.Rating)}
+		{#if getPassiveSkillRatingIcon(skill.Rating)}
 			<img 
-				src={getPassiveSkillRatingIcon(safeSkill.Rating)} 
-				alt="Rating {safeSkill.Rating}" 
-				class="{sizeClasses[validSize].icon} {safeSkill.Rating === -1 ? 'red-mask' : ''}"
+				src={getPassiveSkillRatingIcon(skill.Rating)} 
+				alt="Rating {skill.Rating}" 
+				class="{sizeClasses[validSize].icon} {skill.Rating === -1 ? 'red-mask' : ''}"
 			/>
 		{/if}
 	</div>
 	<div class="flex-1 min-w-0">
-		<div class="{sizeClasses[validSize].name} truncate">{safeSkill.Name}</div>
-		{#if showDescription && safeSkill.Description}
-			<div class="{sizeClasses[validSize].description}">{safeSkill.Description}</div>
+		<div class="{sizeClasses[validSize].name} truncate">{skill.Name}</div>
+		{#if showDescription && skill.Description}
+			<div class="{sizeClasses[validSize].description}">{skill.Description}</div>
 		{/if}
 	</div>
 </div>

@@ -3,11 +3,12 @@ import type {FullPlayerCardData, PalCardData, PlayerCardData} from "$lib/Charact
 import {Pal} from "$save-edit/models/Pal";
 import type {ServerSave} from "$save-edit/models/ServerSave";
 import type {CharacterSave} from "$save-edit/models/CharacterSave";
-import {getPalData, cleanElementType, cleanSizeType, cleanTribe, Buff, getPassive} from "$lib/palDatabase";
+import {getPalData, cleanElementType, cleanSizeType, cleanTribe, type Buff, getPassive, getLocalizedPassive} from "$lib/palDatabase";
 import type {Guild} from "$save-edit/models/Guild";
 import friendshipData from "../../../databases/friendship_ranks.json";
 import type {FriendshipRank, PassiveSkill} from "$lib/interfaces/";
 import {GetPalStats} from "$lib/interfaces/";
+import type { LocalizedPassiveSkill } from "./interfaces/passive-skills";
 
 export function toPlayerCard(pWorld: Player, pSave: CharacterSave, serverSave: ServerSave) : PlayerCardData{
     const pals = serverSave.Characters.filter(a => a instanceof Pal) as Pal[];
@@ -58,7 +59,7 @@ export function toPalCard(pWorld: Pal, serverSave: ServerSave, isCamp: boolean =
         b_Defense : 0,
         b_MoveSpeed : 0
     };
-    let displayedPassives = [];
+    let displayedPassives : LocalizedPassiveSkill[] = [];
     if(pWorld.PassiveSkillList) {
         for (let passive of pWorld.PassiveSkillList) {
             let passStat = getPassive(passive);
@@ -67,7 +68,7 @@ export function toPalCard(pWorld: Pal, serverSave: ServerSave, isCamp: boolean =
             buff.b_Defense += passStat.Buff.b_Defense;
             buff.b_MoveSpeed += passStat.Buff.b_MoveSpeed;
 
-            displayedPassives = [...displayedPassives, {...passStat.I18n["fr"], Rating: passStat.Rating, Id: passive}];
+            displayedPassives =[ ...displayedPassives, getLocalizedPassive(passive, 'fr')];
         }
     }
     // let condenserBonus = pWorld.

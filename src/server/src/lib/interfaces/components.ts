@@ -1,12 +1,12 @@
 // Component-specific prop interfaces
 
-import type { PassiveSkill } from './passive-skills';
+import type { LocalizedPassiveSkill } from './passive-skills';
 import type { BreedingSource } from './breeding';
 import type { PlayerCardData, PalCardData, FullPlayerCardData } from './character';
 
 // PassiveSkill component props
 export interface PassiveSkillProps {
-	skill: PassiveSkill;
+	skill: LocalizedPassiveSkill;
 	onClick?: (skillName: string) => void;
 	clickable?: boolean;
 	size?: 'sm' | 'md' | 'lg';

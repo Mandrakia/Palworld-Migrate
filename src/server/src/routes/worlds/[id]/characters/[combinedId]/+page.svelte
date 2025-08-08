@@ -5,8 +5,9 @@
 	import { getGenderType } from '$lib/genderUtils';
 	import { getWorkSkillIcon, getWorkSkillName } from '$lib/workSuitabilityUtils';
 	import PassiveSkill from '$lib/PassiveSkill.svelte';
-    import {derived} from "svelte/store";
-    import {GetPalStats} from "$lib/stats";
+    import type { PalCardData, WorkSuitabilities } from '$lib/interfaces';
+    import type { LocalizedPassiveSkill } from '$lib/interfaces/passive-skills';
+    import { getLocalizedPassive } from '$lib/palDatabase';
 	interface Props {
 		data: PageData;
 	}
@@ -27,10 +28,6 @@
 	let passiveSkillSearch = $state(''); // Search term for passive skills dropdown
 	let showPassiveDropdown = $state(false); // Show/hide passive skills dropdown
 
-	function handlePalSelect(pal: any) {
-		// Could navigate to a detailed pal view if needed
-		console.log('Selected pal:', pal);
-	}
 
 	function goBackToWorld() {
 		goto(`/worlds/${data.worldId}`);
@@ -109,11 +106,11 @@
 
 
 
-	function getCombinedTalent(pal: any): number {
+	function getCombinedTalent(pal: PalCardData): number {
 		return (pal.talentHP || 0) + (pal.talentShot || 0) + (pal.talentDefense || 0);
 	}
 
-	function filterPals(pals: any[], selectedGender: 'male' | 'female' | null, bossFilter: string, selectedElements: Set<string>, selectedWorkSkills: Map<string, number>, nameSearch: string, selectedPassiveSkills: Set<string>) {
+	function filterPals(pals: PalCardData[], selectedGender: 'male' | 'female' | null, bossFilter: string, selectedElements: Set<string>, selectedWorkSkills: Map<string, number>, nameSearch: string, selectedPassiveSkills: Set<string>) {
 		return pals.filter(pal => {
 			// Gender filter
 			if (selectedGender) {
@@ -142,7 +139,7 @@
 			// Work skills filter (AND logic - pal must have ALL selected work skills at required level or higher)
 			if (selectedWorkSkills.size > 0) {
 				for (const [skillName, requiredLevel] of selectedWorkSkills) {
-					const palSkillLevel = pal.workSuitabilities?.[skillName] || 0;
+					const palSkillLevel = pal.workSuitabilities?.[skillName as keyof WorkSuitabilities] || 0;
 					if (palSkillLevel < requiredLevel) return false;
 				}
 			}
@@ -166,7 +163,7 @@
 		});
 	}
 
-	function sortPals(pals: any[], sortBy: string, order: 'asc' | 'desc') {
+	function sortPals(pals: PalCardData[], sortBy: string, order: 'asc' | 'desc') {
 		const sorted = [...pals].sort((a, b) => {
 			let valueA: any, valueB: any;
 
@@ -224,7 +221,7 @@
 	}
 
 	// Get unique elements from all pals for filter options
-	function getUniqueElements(pals: any[]): string[] {
+	function getUniqueElements(pals: PalCardData[]): string[] {
 		const elements = new Set<string>();
 		pals.forEach(pal => {
 			if (pal.elementType1 && pal.elementType1 !== 'None') elements.add(pal.elementType1);
@@ -341,23 +338,17 @@
 	let filteredPassiveSkills = $derived(uniquePassiveSkills.filter(a=> a.toLowerCase().includes(passiveSkillSearch.toLowerCase())));
 
 	// Get passive skill rating and color from any pal that has this skill
-	function getPassiveSkillInfo(skillName: string) {
-		if (!data.characterData.pals) return { rating: 0, color: 'bg-slate-900/50 text-slate-300 border-slate-500' };
-		
+	function getPassiveSkillInfo(skillName: string) : LocalizedPassiveSkill {
 		for (const pal of data.characterData.pals) {
 			if (pal.passiveSkills) {
 				for (const skill of pal.passiveSkills) {
 					if (skill.Name === skillName) {
-						return {
-							rating: skill.Rating,
-							color: 'bg-slate-900/50 text-slate-300 border-slate-500', // Simplified since component handles this
-							icon: ''
-						};
+						return skill;
 					}
 				}
 			}
 		}
-		return { rating: 0, color: 'bg-slate-900/50 text-slate-300 border-slate-500' };
+		return getLocalizedPassive(skillName, 'fr');
 	}
 
 	// Interactive click handlers for pal cards
@@ -615,10 +606,7 @@
 								
 								<!-- Selected Skills Display -->
 								{#if selectedPassiveSkills.size > 0}
-									{@const selectedSkillsArray = Array.from(selectedPassiveSkills).map(skillName => {
-										const skillInfo = getPassiveSkillInfo(skillName);
-										return { Name: skillName, Rating: skillInfo.rating };
-									})}
+									{@const selectedSkillsArray = Array.from(selectedPassiveSkills).map(getPassiveSkillInfo)}
 									<div class="mb-2">
 										<div class="flex flex-wrap gap-2">
 											{#each selectedSkillsArray.slice(0, 10) as skill}
@@ -659,8 +647,7 @@
 										<div class="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-lg max-h-48 overflow-y-auto z-50">
 											{#if filteredPassiveSkills.length > 0}
 												{#each filteredPassiveSkills as skillName}
-													{@const skillInfo = getPassiveSkillInfo(skillName)}
-													{@const skillObject = { Name: skillName, Rating: skillInfo.rating }}
+													{@const skillInfo = getPassiveSkillInfo(skillName)}													
 													<button
 														onclick={() => {
 															togglePassiveSkill(skillName);
@@ -671,7 +658,7 @@
 													>
 														<div class="flex-1">
 															<PassiveSkill 
-																skill={skillObject} 
+																skill={skillInfo} 
 																size="sm"
 																showDescription={false}
 															/>
@@ -799,7 +786,7 @@
 									<div class="flex space-x-2">
 										{#if pal.elementType1 && pal.elementType1 !== 'None'}
 											<button 
-												onclick={() => handleElementClick(pal.elementType1)}
+												onclick={() => handleElementClick(pal.elementType1!)}
 												class="flex items-center space-x-1 {getElementColor(pal.elementType1)} px-2 py-1 rounded text-xs hover:scale-105 transition-transform cursor-pointer"
 												title="Click to filter by {pal.elementType1}"
 											>
@@ -811,7 +798,7 @@
 										{/if}
 										{#if pal.elementType2 && pal.elementType2 !== 'None'}
 											<button 
-												onclick={() => handleElementClick(pal.elementType2)}
+												onclick={() => handleElementClick(pal.elementType2!)}
 												class="flex items-center space-x-1 {getElementColor(pal.elementType2)} px-2 py-1 rounded text-xs hover:scale-105 transition-transform cursor-pointer"
 												title="Click to filter by {pal.elementType2}"
 											>

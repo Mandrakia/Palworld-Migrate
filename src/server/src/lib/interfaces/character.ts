@@ -1,7 +1,8 @@
 // Character, player, and pal related interfaces
 
 import type { StatPoint } from './common';
-import type { PassiveSkill } from './passive-skills';
+import type { LocalizedPassiveSkill, PassiveSkill } from './passive-skills';
+import type { CharacterStats } from './stats';
 
 export interface BaseCharacterCardData {
 	id: string;
@@ -48,12 +49,14 @@ export interface PalCardData extends BaseCharacterCardData {
 	talentHP?: number;
 	talentShot?: number;
 	talentDefense?: number;
-	passiveSkills?: PassiveSkill[];
+	passiveSkills?: LocalizedPassiveSkill[];
 	rank: number;
 	ownerPlayerId?: string;
 	friendshipPoint?: number;
     friendshipRank?: number;
 	ownedTime?: Date;
+	currentStats?: CharacterStats,
+	endStats?: CharacterStats,
 	// Additional data from pals.json
 	displayName?: string;
 	tribe?: string;

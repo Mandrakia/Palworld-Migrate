@@ -12,6 +12,20 @@ import type { LocalizedPassiveSkill } from '$lib/interfaces/passive-skills';
 // Cached breeding combinations map
 let breedingCombinationsCache: Map<string, {parent1: string, parent2: string}[]> | null = null;
 
+/**
+ * Determine if two pal references represent the same in-world instance.
+ * They are considered the same if both have playerId and instanceId and they match,
+ * or if they are the exact same object reference.
+ */
+function isSameInstance(a: SimplePal | PalWithGenealogy, b: SimplePal | PalWithGenealogy): boolean {
+    if (a === b) return true;
+    const aPlayer = (a as any).playerId;
+    const bPlayer = (b as any).playerId;
+    const aInstance = (a as any).instanceId;
+    const bInstance = (b as any).instanceId;
+    return Boolean(aPlayer && bPlayer && aInstance && bInstance && aPlayer === bPlayer && aInstance === bInstance);
+}
+
 const getDisplayName = (characterId: string, pal?: PalCardData): string => {
     try {
         const palData = getPalData(characterId);
@@ -155,38 +169,38 @@ function collectAvailableWorkSpeedPassives(pals: PalCardData[]): {passive: Passi
 
 // Generate all possible passive combinations (1-4 passives) from parent pool
 function generatePassiveCombinations(parent1Passives: LocalizedPassiveSkill[], parent2Passives: LocalizedPassiveSkill[]): {passives: LocalizedPassiveSkill[], probability: number}[] {
-    // Combine parent passives and remove duplicates
-    const passivePool = [...new Set([...parent1Passives, ...parent2Passives])];
-    
-    if (passivePool.length === 0) {
-        return [{passives: [], probability: 1.0}];
-    }
-    
-    const combinations: {passives: LocalizedPassiveSkill[], probability: number}[] = [];
-    
-    // Generate all possible combinations of 1-4 passives
-    for (let numPassives = 1; numPassives <= Math.min(4, passivePool.length); numPassives++) {
-        const combos = getCombinations(passivePool, numPassives);
-        
-        // Each combination has equal probability within its size group
-        // Real game probably has different probabilities, but this is a reasonable approximation
-        const probabilityPerCombo = 1 / (4 * combos.length); // Assuming equal chance for 1, 2, 3, or 4 passives
-        
-        for (const combo of combos) {
-            combinations.push({
-                passives: combo,
-                probability: probabilityPerCombo
-            });
+    // Combine parent passives and remove duplicates by Id (not by reference)
+    const poolMap = new Map<string, LocalizedPassiveSkill>();
+    for (const p of [...parent1Passives, ...parent2Passives]) {
+        if (p && typeof (p as any).Id === 'string' && !poolMap.has(p.Id)) {
+            poolMap.set(p.Id, p);
         }
     }
-    
-    // Also include the possibility of no passives (though rare)
-    combinations.push({passives: [], probability: 0.05});
-    
-    // Normalize probabilities so they sum to 1
-    const totalProb = combinations.reduce((sum, c) => sum + c.probability, 0);
-    combinations.forEach(c => c.probability = c.probability / totalProb);
-    
+    const passivePool = Array.from(poolMap.values());
+
+    // If no passives from parents, the only possible result is no passives
+    if (passivePool.length === 0) {
+        return [{ passives: [], probability: 1.0 }];
+    }
+
+    // User-specified distribution for number of inherited passives
+    const baseWeights: Record<number, number> = { 1: 0.4, 2: 0.3, 3: 0.2, 4: 0.1 };
+    // Only k up to the available pool size are possible; renormalize weights over valid k's
+    const validKs = [1, 2, 3, 4].filter(k => k <= passivePool.length);
+    const weightSum = validKs.reduce((sum, k) => sum + (baseWeights[k] || 0), 0);
+
+    const combinations: { passives: LocalizedPassiveSkill[], probability: number }[] = [];
+
+    for (const k of validKs) {
+        const combos = getCombinations(passivePool, k);
+        const normalizedWeight = (baseWeights[k] || 0) / (weightSum || 1);
+        const probabilityPerCombo = combos.length > 0 ? (normalizedWeight / combos.length) : 0;
+
+        for (const combo of combos) {
+            combinations.push({ passives: combo, probability: probabilityPerCombo });
+        }
+    }
+
     return combinations;
 }
 
@@ -262,9 +276,9 @@ function findBreedingRoute2(characterId: string, passives: LocalizedPassiveSkill
                 
                 // Filter for combinations that have desired passives
                 const beneficialCombinations = possibleCombinations.filter(combo => {
-                    const desiredPassivesInCombo = combo.passives.filter(p => passives.includes(p));
-                    const palADesiredCount = palA.passives.filter(p => passives.includes(p)).length;
-                    const palBDesiredCount = palB.passives.filter(p => passives.includes(p)).length;
+                    const desiredPassivesInCombo = combo.passives.filter(p => passives.some(dp => dp.Id === p.Id));
+                    const palADesiredCount = palA.passives.filter(p => passives.some(dp => dp.Id === p.Id)).length;
+                    const palBDesiredCount = palB.passives.filter(p => passives.some(dp => dp.Id === p.Id)).length;
                     
                     // Only keep if we get more desired passives than either parent
                     return desiredPassivesInCombo.length > Math.max(palADesiredCount, palBDesiredCount);
@@ -276,10 +290,16 @@ function findBreedingRoute2(characterId: string, passives: LocalizedPassiveSkill
                     const alreadyExists = [...allDiscoveredPals, ...nextGeneration].some(existing => 
                         existing.characterId === breedingResult && 
                         existing.passives.length === combo.passives.length &&
-                        existing.passives.every(p => combo.passives.includes(p))
+                        existing.passives.every(p => combo.passives.some(cp => cp.Id === p.Id))
                     );
                     
-                    if (!alreadyExists && combo.probability > 0.01) { // Only include combinations with reasonable probability
+                    if (!alreadyExists && combo.probability > 0.001) { // Only include combinations with reasonable probability
+                        // Sum probabilities across all offspring combos that include at least the desired passives
+                        // present in this combo (supersets allowed), by Id
+                        const desiredInCombo = combo.passives.filter(p => passives.some(dp => dp.Id === p.Id));
+                        const aggregatedProb = possibleCombinations
+                            .filter(c => desiredInCombo.every(dp => c.passives.some(p => p.Id === dp.Id)))
+                            .reduce((acc, c) => acc + c.probability, 0);
                         const newPal: PalWithGenealogy = {
                             parent1: palA,
                             parent2: palB,
@@ -287,7 +307,7 @@ function findBreedingRoute2(characterId: string, passives: LocalizedPassiveSkill
                             passives: combo.passives,
                             gender: 'Neutral',
                             level: 1,
-                            probability: combo.probability,
+                            probability: aggregatedProb,
                             name: getDisplayName(breedingResult)
                         };
                         
@@ -302,8 +322,8 @@ function findBreedingRoute2(characterId: string, passives: LocalizedPassiveSkill
         
         // Sort next generation by number of desired passives (keep best ones)
         nextGeneration.sort((a, b) => {
-            const aDesired = a.passives.filter(p => passives.includes(p)).length;
-            const bDesired = b.passives.filter(p => passives.includes(p)).length;
+            const aDesired = a.passives.filter(p => passives.some(dp => dp.Id === p.Id)).length;
+            const bDesired = b.passives.filter(p => passives.some(dp => dp.Id === p.Id)).length;
             return bDesired - aDesired;
         });
         
@@ -324,8 +344,8 @@ function findBreedingRoute2(characterId: string, passives: LocalizedPassiveSkill
         // Keep only the best performers from current generation to prevent explosion
         const currentBest = currentGeneration
             .sort((a, b) => {
-                const aDesired = a.passives.filter(p => passives.includes(p)).length;
-                const bDesired = b.passives.filter(p => passives.includes(p)).length;
+                const aDesired = a.passives.filter(p => passives.some(dp => dp.Id === p.Id)).length;
+                const bDesired = b.passives.filter(p => passives.some(dp => dp.Id === p.Id)).length;
                 return bDesired - aDesired;
             })
             .slice(0, 50); // Keep top 50 from current generation
@@ -347,8 +367,8 @@ function findRoutesToTarget(targetCharacterId: string, existingPals: SimplePal[]
     // Sort bred pals by number of desired passives (best first)
     const sortStart = Date.now();
     const sortedBredPals = bredPals.sort((a, b) => {
-        const aDesired = a.passives.filter(p => desiredPassives.includes(p)).length;
-        const bDesired = b.passives.filter(p => desiredPassives.includes(p)).length;
+        const aDesired = a.passives.filter(p => desiredPassives.some(dp => dp.Id === p.Id)).length;
+        const bDesired = b.passives.filter(p => desiredPassives.some(dp => dp.Id === p.Id)).length;
         return bDesired - aDesired;
     });
     const sortTime = Date.now() - sortStart;
@@ -363,7 +383,7 @@ function findRoutesToTarget(targetCharacterId: string, existingPals: SimplePal[]
     // Try to find paths from each bred pal to the target
     for (const bredPal of sortedBredPals) {
         palsProcessed++;
-        const desiredPassivesInBred = bredPal.passives.filter(p => desiredPassives.includes(p));
+        const desiredPassivesInBred = bredPal.passives.filter(p => desiredPassives.some(dp => dp.Id === p.Id));
         if (desiredPassivesInBred.length === 0) continue; // Skip if no desired passives
         
         // Try direct path: can this bred pal be used directly to breed the target?
@@ -403,7 +423,8 @@ function findDirectPath(bredPal: PalWithGenealogy, targetCharacterId: string, ex
             // Find a suitable second parent
             const secondParent = allAvailablePals.find(pal => 
                 pal.characterId === parent2 && 
-                (pal.gender !== bredPal.gender || pal.gender === "Neutral")
+                (pal.gender !== bredPal.gender || pal.gender === "Neutral") &&
+                !isSameInstance(pal, bredPal)
             );
             
             if (secondParent) {
@@ -413,7 +434,8 @@ function findDirectPath(bredPal: PalWithGenealogy, targetCharacterId: string, ex
             // Find a suitable first parent
             const firstParent = allAvailablePals.find(pal => 
                 pal.characterId === parent1 && 
-                (pal.gender !== bredPal.gender || pal.gender === "Neutral")
+                (pal.gender !== bredPal.gender || pal.gender === "Neutral") &&
+                !isSameInstance(pal, bredPal)
             );
             
             if (firstParent) {
@@ -446,24 +468,9 @@ function findIndirectPath(bredPal: PalWithGenealogy, targetCharacterId: string, 
             );
             
             if (secondParent) {
-                // Create route: bred steps -> parent1, then parent1 + parent2 -> target
-                const finalStep: BreedingStep = {
-                    parent1: parent1Route.target,
-                    parent2: secondParent,
-                    result: {
-                        characterId: targetCharacterId,
-                        gender: 'Neutral',
-                        level: 1,
-                        passives: [...new Set([...parent1Route.target.passives, ...secondParent.passives])],
-                        name: getDisplayName(targetCharacterId)
-                    },
-                    generation: 0
-                };
-                
-                return {
-                    target: finalStep.result,
-                    steps: [...parent1Route.steps, finalStep]
-                };
+                // Use createRoute to generate the final step with proper passive combinations and probability
+                const route = createRoute(parent1Route.target, secondParent, targetCharacterId, desiredPassives);
+                if (route) return route;
             }
         }
         
@@ -477,24 +484,9 @@ function findIndirectPath(bredPal: PalWithGenealogy, targetCharacterId: string, 
             );
             
             if (firstParent) {
-                // Create route: bred steps -> parent2, then parent1 + parent2 -> target
-                const finalStep: BreedingStep = {
-                    parent1: firstParent,
-                    parent2: parent2Route.target,
-                    result: {
-                        characterId: targetCharacterId,
-                        gender: 'Neutral', 
-                        level: 1,
-                        passives: [...new Set([...firstParent.passives, ...parent2Route.target.passives])],
-                        name: getDisplayName(targetCharacterId)
-                    },
-                    generation: 0
-                };
-                
-                return {
-                    target: finalStep.result,
-                    steps: [...parent2Route.steps, finalStep]
-                };
+                // Use createRoute to generate the final step with proper passive combinations and probability
+                const route = createRoute(firstParent, parent2Route.target, targetCharacterId, desiredPassives);
+                if (route) return route;
             }
         }
     }
@@ -503,29 +495,51 @@ function findIndirectPath(bredPal: PalWithGenealogy, targetCharacterId: string, 
 }
 
 function createRoute(parent1: SimplePal | PalWithGenealogy, parent2: SimplePal | PalWithGenealogy, targetCharacterId: string, desiredPassives: LocalizedPassiveSkill[]): BreedingRoute | null {
+    // Do not allow breeding with the exact same pal instance
+    if (isSameInstance(parent1, parent2)) {
+        return null;
+    }
     // Generate all possible passive combinations for this breeding
     const possibleCombinations = generatePassiveCombinations(parent1.passives, parent2.passives);
     
-    // Find the combination with the most desired passives and reasonable probability
-    let bestCombo: {passives: LocalizedPassiveSkill[], probability: number} | null = null;
-    let maxDesiredCount = 0;
-    
+    // Find the combination with the most desired passives, then highest probability, then highest craft speed
+    const PROB_THRESHOLD = 0.001;
+    let bestCombo: { passives: LocalizedPassiveSkill[]; probability: number } | null = null;
+    let bestDesiredCount = -1;
+    let bestProb = -1;
+    let bestCraft = -1;
+
     for (const combo of possibleCombinations) {
-        const desiredCount = combo.passives.filter(p => desiredPassives.includes(p)).length;
-        if (desiredCount > maxDesiredCount && combo.probability > 0.01) {
-            maxDesiredCount = desiredCount;
+        if (combo.probability < PROB_THRESHOLD) continue;
+        const desiredCount = combo.passives.filter(p => desiredPassives.some(dp => dp.Id === p.Id)).length;
+        const craftSum = combo.passives.reduce((sum, p) => sum + (p.Buff?.CraftSpeed || 0), 0);
+
+        if (
+            desiredCount > bestDesiredCount ||
+            (desiredCount === bestDesiredCount && combo.probability > bestProb) ||
+            (desiredCount === bestDesiredCount && combo.probability === bestProb && craftSum > bestCraft)
+        ) {
+            bestDesiredCount = desiredCount;
+            bestProb = combo.probability;
+            bestCraft = craftSum;
             bestCombo = combo;
         }
     }
-    
-    if (!bestCombo || maxDesiredCount === 0) return null;
-    
+
+    if (!bestCombo || bestDesiredCount <= 0) return null;
+
+    // Success should include any offspring that contains ALL desired passives (supersets allowed)
+    // Sum probabilities across all enumerated combinations that include the full desired set by Id
+    const successProbability = possibleCombinations
+        .filter(c => desiredPassives.every(dp => c.passives.some(p => p.Id === dp.Id)))
+        .reduce((acc, c) => acc + c.probability, 0);
+
     const targetPal: PalWithGenealogy = {
         characterId: targetCharacterId,
         gender: 'Neutral',
         level: 1,
         passives: bestCombo.passives,
-        probability: bestCombo.probability,
+        probability: successProbability,
         parent1: parent1 as PalWithGenealogy,
         parent2: parent2 as PalWithGenealogy,
         name: getDisplayName(targetCharacterId)
@@ -645,7 +659,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
         // Filter routes that actually have desired passives
         const routesWithDesiredPassives = routesToTarget.filter(route => {
             const desiredPassivesInTarget = route.target.passives.filter(passive => 
-                desiredPassives.includes(passive)
+                desiredPassives.some(dp => dp.Id === passive.Id)
             );
             return desiredPassivesInTarget.length > 0;
         });
@@ -664,15 +678,35 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
             return json(result);
         }
 
-        // Take the best route (first one after sorting)
-        const bestRoute = routesWithDesiredPassives[0];
+        // Sort candidate routes by quality before selecting the best one
+        const scoredRoutes = routesWithDesiredPassives.map(route => {
+            const desiredCount = route.target.passives.filter(passive => desiredPassives.some(dp => dp.Id === passive.Id)).length;
+            // Route probability is the product of step probabilities (fallback to a small value if missing)
+            const routeProbability = route.steps.reduce((prod, step) => {
+                const p = (step.result as PalWithGenealogy).probability ?? 0.01;
+                return prod * p;
+            }, 1);
+            const stepsCount = route.steps.length;
+            const targetCraftBuff = route.target.passives.reduce((acc, p) => acc + (getPassive(p.Id)?.Buff?.b_CraftSpeed || 0), 0);
+            return { route, desiredCount, routeProbability, stepsCount, targetCraftBuff };
+        });
+
+        scoredRoutes.sort((a, b) => {
+            // 1) higher work speed buff on target; 2) fewer steps; 3) higher total route probability
+            if (b.targetCraftBuff !== a.targetCraftBuff) return b.targetCraftBuff - a.targetCraftBuff;
+            if (a.stepsCount !== b.stepsCount) return a.stepsCount - b.stepsCount;
+            return b.routeProbability - a.routeProbability;
+        });
+
+        const bestRoute = scoredRoutes[0].route;
+        
         const desiredPassivesInTarget = bestRoute.target.passives.filter(passive => 
-            desiredPassives.includes(passive)
+            desiredPassives.some(dp => dp.Id === passive.Id)
         );
 
         // Convert steps to BreedingPair format
         const breedingSteps: BreedingStep[] = bestRoute.steps.map((step, index) => {
-            const expectedPassives = step.result.passives.filter(p => desiredPassives.includes(p))
+            const expectedPassives = step.result.passives.filter(p => desiredPassives.some(dp => dp.Id === p.Id))
             
             // Find the parent pal data for more complete information
             const parent1Data = pals.find(p => p.playerId === step.parent1.playerId && p.instanceId === step.parent1.instanceId && p.characterId === step.parent1.characterId) || step.parent1;
@@ -687,7 +721,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
             return {
                 ...step,
                 expectedPassives,
-                passiveProbability: step.result.probability || Math.pow(0.5, expectedPassives.length), // Use calculated probability
+                passiveProbability: (step.result as PalWithGenealogy).probability ?? Math.pow(0.5, expectedPassives.length), // Use calculated probability; respect 0
                 workSpeedScore: Math.round(workSpeedScore)
             };
         });
@@ -702,7 +736,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
             }
         }, 0);
         
-        const finalWorkSpeed = Math.round(100 + (finalWorkSpeedBuff * 100)); // Base 100 + buff percentage
+        const finalWorkSpeed = Math.round(70 * (finalWorkSpeedBuff + 1)); // Base 100 + buff percentage
 
         // Step 4: Data conversion and response preparation
         const step4Time = Date.now() - step3Start - step3Time;
