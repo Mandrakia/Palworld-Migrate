@@ -13,7 +13,7 @@ export interface PassiveSkillBase {
 }
 
 export interface PassiveSkill extends PassiveSkillBase {
-	Id?: string;
+	Id: string;
 	Description?: string;
 }
 
@@ -21,4 +21,12 @@ export interface PalPassiveSkill extends PassiveSkillBase {
 	InternalName: string;
 	I18n: string;
 	Buff: Buff;
+}
+
+export interface LocalizedPassiveSkill {
+	Name: string;
+	Description: string;
+	Rating: number;
+	Buff: Buff;
+	Id: string;
 }

@@ -1,7 +1,8 @@
 import type { PalCardData } from '$lib/CharacterCardData';
 import { getPalData, palDatabase } from "$lib/palDatabase";
+import type { SimplePal } from '../routes/api/worlds/[id]/characters/[player_instance_id]/breeding-route/+server';
 
-export function getBreedingResult(pal1: PalCardData, pal2: PalCardData): string | null {
+export function getBreedingResult(pal1: PalCardData|SimplePal , pal2: PalCardData|SimplePal): string | null {
     if (pal1.characterId == null || pal2.characterId == null) {
         return null;
     }

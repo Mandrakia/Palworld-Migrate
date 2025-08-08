@@ -6,7 +6,7 @@
 	import PassiveSkill from '$lib/PassiveSkill.svelte';
 	import CombinationDetails from '$lib/CombinationDetails.svelte';
 	import CharacterAutocomplete from '$lib/CharacterAutocomplete.svelte';
-	import type { BreedingSource, WorkSpeedRoute } from '$lib/interfaces/index.js';
+	import type { BreedingRouteResponse} from '$lib/interfaces';
 	import { onMount } from 'svelte';
 
 	interface Props {
@@ -17,7 +17,7 @@
 
 	// Goal management
 	let goals = $state<string[]>([]);
-	let goalRoutes = $state<Record<string, WorkSpeedRoute>>({});
+	let goalRoutes = $state<Record<string, BreedingRouteResponse>>({});
 	let loadingGoals = $state<Set<string>>(new Set());
 	let expandedGoals = $state(new Set<string>());
 
@@ -70,7 +70,7 @@
 		try {
 			const response = await fetch(`/api/worlds/${data.worldId}/characters/${data.combinedId}/breeding-route?characterId=${encodeURIComponent(characterId)}&maxDepth=3`);
 			if (response.ok) {
-				const route: WorkSpeedRoute = await response.json();
+				const route: BreedingRouteResponse = await response.json();
 				goalRoutes[characterId] = route;
 				goalRoutes = { ...goalRoutes };
 			} else {
@@ -416,7 +416,7 @@
 														<div class="flex items-center justify-between mb-3">
 															<div class="text-slate-400 text-sm">Step {index + 1} (Gen {step.generation})</div>
 															<div class="text-green-400 text-sm">
-																{Math.round(step.passiveProbability * 100)}% chance
+																{step.passiveProbability ? Math.round(step.passiveProbability * 100) : 100}% chance
 															</div>
 														</div>
 
@@ -489,8 +489,8 @@
 															<div class="flex items-center space-x-3">
 																<div class="w-10 h-10 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-full flex items-center justify-center overflow-hidden">
 																	<img 
-																		src={getPalIconUrl(step.resultCharacterId)} 
-																		alt={step.resultCharacterId}
+																		src={getPalIconUrl(step.result.characterId)} 
+																		alt={step.result.characterId}
 																		class="w-full h-full object-cover rounded-full"
 																		onerror={(event) => {
 																			const target = event.target as HTMLImageElement;
@@ -503,25 +503,25 @@
 																</div>
 																<div class="min-w-0">
 																	<div class="text-white font-medium text-sm truncate">
-																		{step.resultCharacterId}
+																		{step.result.name}
 																	</div>
 																	<div class="text-xs text-green-400">
-																		Work Speed: {step.workSpeedScore}
+																		Work Speed: {step.result.workSpeedScore}
 																	</div>
 																</div>
 															</div>
 														</div>
 
 														<!-- Expected Passives -->
-														{#if step.expectedPassives?.length > 0}
+														{#if step.result.passives?.length > 0}
 															<div class="mt-3 pt-3 border-t border-slate-700">
 																<div class="text-slate-400 text-xs mb-2">Expected Passives:</div>
 																<div class="flex flex-wrap gap-1">
-																	{#each step.expectedPassives as skill}
-																		{#if skill && skill.Name}
+																	{#each step.result.passives as skill}
+																		{#if skill}
 																			<PassiveSkill 
 																				{skill} 
-																				size="xs"
+																				size="sm"
 																				showDescription={false}
 																			/>
 																		{/if}
@@ -579,7 +579,7 @@
 										<div class="w-16 h-16 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-full flex items-center justify-center overflow-hidden">
 											<img 
 												src={getPalIconUrl(result.characterId)}
-												alt={result.palName}
+												alt={result.displayName}
 												class="w-full h-full object-cover rounded-full"
 												onerror={(event) => {
 													const target = event.target as HTMLImageElement;

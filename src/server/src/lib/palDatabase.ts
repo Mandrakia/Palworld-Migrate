@@ -1,5 +1,6 @@
 import palsData from '../../../databases/pals.json';
 import passives from '../../../databases/pal_passives.json';
+import type { LocalizedPassiveSkill } from './interfaces/passive-skills';
 
 export interface PalPassiveSkill {
     InternalName: string;
@@ -66,10 +67,35 @@ export interface Combination  {
     ChildCharacterID: string;
 }
 export type PalDatabase = Record<string, PalDatabaseEntry>;
-
+export type PalPassiveDatabase = Record<string, PalPassiveSkill>;
 export const palDatabase: PalDatabase = palsData as PalDatabase;
+export const palPassiveDatabase: PalPassiveDatabase = passives as PalPassiveDatabase;
+
 export function getPassive(passiveId: string) : PalPassiveSkill {
-    return passives[passiveId];
+    return palPassiveDatabase[passiveId];
+}
+
+const localizedPassives = new Map<string,Map<string, LocalizedPassiveSkill>>();
+export function getLocalizedPassive(passiveId: string, locale: string) : LocalizedPassiveSkill {
+  if(!localizedPassives.has(locale)){
+    localizedPassives.set(locale, new Map<string, LocalizedPassiveSkill>());
+  }
+  if(! localizedPassives.get(locale)!.has(passiveId)){
+    const passive = getPassive(passiveId);
+    localizedPassives.get(locale)!.set(passiveId,{
+      Name: passive.I18n[locale].Name,
+      Description: passive.I18n[locale].Description,
+      Rating: passive.Rating,
+      Buff: {
+          Attack: passive.Buff.b_Attack,
+          Defense: passive.Buff.b_Defense,
+          CraftSpeed: passive.Buff.b_CraftSpeed,
+          MoveSpeed: passive.Buff.b_MoveSpeed
+      },
+      Id: passiveId
+    });
+  }   
+  return localizedPassives.get(locale)!.get(passiveId)!;
 }
 export function getPalData(characterId: string): PalDatabaseEntry | null {
   // Try direct lookup first

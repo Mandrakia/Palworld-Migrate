@@ -7,7 +7,7 @@ import type {Player} from "$save-edit/models/Player";
 import {getPalData, getPassive, palDatabase} from "$lib/palDatabase";
 import type {ServerSave} from "$save-edit/models/ServerSave";
 import type {Guild} from "$save-edit/models/Guild";
-import type { BreedingSource, PassiveSkill } from '$lib/interfaces/index.js';
+import type { BreedingResponse, BreedingSource, PassiveSkill } from '$lib/interfaces/index.js';
 import { GetPalStats } from '$lib/stats';
 
 function splitGuids(encoded: string): [string, string] {
@@ -261,39 +261,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
         }
 
         // Calculate optimized results for each character
-        const breedingResults: Record<string, {
-            characterId: string;
-            displayName: string;
-            combinationCount: number;
-            workSuitabilities: {
-                emitFlame: number;
-                watering: number;
-                seeding: number;
-                generateElectricity: number;
-                handcraft: number;
-                collection: number;
-                deforest: number;
-                mining: number;
-                transport: number;
-                monsterFarm: number;
-                cool: number;
-                productMedicine: number;
-            };
-            combatOptimization: {
-                stats: { hp: number, attack: number, defense: number, craftSpeed: number };
-                score: number;
-                improvementPercentage: number;
-                bestPassives: PassiveSkill[];
-                bestCombination: BreedingSource;
-            };
-            workOptimization: {
-                stats: { hp: number, attack: number, defense: number, craftSpeed: number };
-                score: number;
-                bestPassives: PassiveSkill[];
-                bestCombination: BreedingSource;
-            };
-            allCombinations: BreedingSource[];
-        }> = {};
+        const breedingResults: BreedingResponse = {};
 
         for (const [resultCharacterId, combinations] of Object.entries(breedingCombinations)) {
             const combatResult = calculateBestPossibleStats(resultCharacterId, combinations, 'combat');

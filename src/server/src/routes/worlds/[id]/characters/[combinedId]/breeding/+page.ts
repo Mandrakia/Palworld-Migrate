@@ -2,6 +2,7 @@ import { error } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 import type { FullPlayerCardData } from '$lib/CharacterCardData';
 import { combineGuids } from '$lib/guidUtils';
+import type { BreedingResponse } from '$lib/interfaces';
 
 export const load: PageLoad = async ({ params, fetch }) => {
   try {
@@ -27,7 +28,7 @@ export const load: PageLoad = async ({ params, fetch }) => {
       throw error(breedingResponse.status, 'Failed to load breeding data');
     }
     
-    const breedingResults = await breedingResponse.json();
+    const breedingResults: BreedingResponse = await breedingResponse.json();
     
     return {
       characterData,

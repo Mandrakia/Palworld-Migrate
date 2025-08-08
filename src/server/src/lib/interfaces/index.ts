@@ -2,6 +2,9 @@
 export type {
     FriendshipRank
 } from './friendship-rank';
+
+export * from './pals';
+export * from './api';
 // Common types
 export type {
 	Point,
