@@ -6,8 +6,10 @@
 	import PassiveSkill from '$lib/PassiveSkill.svelte';
 	import CombinationDetails from '$lib/CombinationDetails.svelte';
 	import CharacterAutocomplete from '$lib/CharacterAutocomplete.svelte';
-	import type { BreedingRouteResponse} from '$lib/interfaces';
+	import type { BreedingRoute } from '$lib/breedingHelper';
 	import { onMount } from 'svelte';
+	import { palDatabase, palPassiveDatabase } from '$lib/palDatabase';
+	
 
 	interface Props {
 		data: PageData;
@@ -16,8 +18,8 @@
 	let { data }: Props = $props();
 
 	// Goal management
-	let goals = $state<string[]>([]);
-	let goalRoutes = $state<Record<string, BreedingRouteResponse>>({});
+	let goals = $state<{ characterId: string; mode: string }[]>([]);
+	let goalRoutes = $state<Record<string, BreedingRoute>>({});
 	let loadingGoals = $state<Set<string>>(new Set());
 	let expandedGoals = $state(new Set<string>());
 
@@ -29,7 +31,7 @@
 			goals = JSON.parse(savedGoals);
 			// Load routes for existing goals
 			for (const goal of goals) {
-				loadGoalRoute(goal);
+				loadGoalRoute(goal.characterId, goal.mode);
 			}
 		}
 	});
@@ -41,36 +43,36 @@
 	}
 
 	// Add a new goal
-	function addGoal(characterId: string) {
-		if (!characterId || goals.includes(characterId)) return;
+	function addGoal(characterId: string, mode: string) {
+		if (!characterId || goals.find(a=> a.characterId === characterId && a.mode === mode)) return;
 		
-		goals = [...goals, characterId];
+		goals = [...goals, { characterId, mode }];
 		saveGoals();
-		loadGoalRoute(characterId);
+		loadGoalRoute(characterId, mode);
 	}
 
 	// Handle character selection from autocomplete
-	function handleCharacterSelect(characterId: string, character: any) {
-		addGoal(characterId);
+	function handleCharacterSelect(characterId: string, mode: string = 'work') {
+		addGoal(characterId, mode);
 	}
 
 	// Remove a goal
-	function removeGoal(characterId: string) {
-		goals = goals.filter(g => g !== characterId);
+	function removeGoal(characterId: string, mode: string) {
+		goals = goals.filter(g => g.characterId !== characterId || g.mode !== mode);
 		delete goalRoutes[characterId];
 		goalRoutes = { ...goalRoutes };
 		saveGoals();
 	}
 
 	// Load breeding route for a goal
-	async function loadGoalRoute(characterId: string) {
+	async function loadGoalRoute(characterId: string, mode: string = 'work') {
 		loadingGoals.add(characterId);
 		loadingGoals = new Set(loadingGoals);
 
 		try {
-			const response = await fetch(`/api/worlds/${data.worldId}/characters/${data.combinedId}/breeding-route?characterId=${encodeURIComponent(characterId)}&maxDepth=3`);
+			const response = await fetch(`/api/worlds/${data.worldId}/characters/${data.combinedId}/breeding-new?characterId=${encodeURIComponent(characterId)}&mode=${mode}`);
 			if (response.ok) {
-				const route: BreedingRouteResponse = await response.json();
+				const route: BreedingRoute = await response.json();
 				goalRoutes[characterId] = route;
 				goalRoutes = { ...goalRoutes };
 			} else {
@@ -85,13 +87,13 @@
 	}
 
 	// Toggle goal expansion
-	function toggleGoal(characterId: string) {
-		console.log('Toggling goal:', characterId, 'currently expanded:', expandedGoals.has(characterId));
+	function toggleGoal(goal: { characterId: string; mode: string }) {
+		console.log('Toggling goal:', goal, 'currently expanded:', expandedGoals.has(goal.characterId));
 		const newExpandedGoals = new Set(expandedGoals);
-		if (newExpandedGoals.has(characterId)) {
-			newExpandedGoals.delete(characterId);
+		if (newExpandedGoals.has(goal.characterId)) {
+			newExpandedGoals.delete(goal.characterId);
 		} else {
-			newExpandedGoals.add(characterId);
+			newExpandedGoals.add(goal.characterId);
 		}
 		expandedGoals = newExpandedGoals;
 		console.log('After toggle:', expandedGoals);
@@ -312,18 +314,18 @@
 				<!-- Goals List -->
 				{#if goals.length > 0}
 					<div class="space-y-4">
-						{#each goals as goalId}
+						{#each goals as goal}
 							<div class="bg-slate-700/30 rounded-lg overflow-hidden">
 								<!-- Goal Header -->
 								<div 
 									class="p-4 cursor-pointer hover:bg-slate-700/50 transition-colors flex items-center justify-between"
-									onclick={() => toggleGoal(goalId)}
+									onclick={() => toggleGoal(goal)}
 								>
 									<div class="flex items-center space-x-4">
 										<div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center overflow-hidden">
 											<img 
-												src={getPalIconUrl(goalId)}
-												alt={goalId}
+												src={getPalIconUrl(goal.characterId)}
+												alt={goal.characterId}
 												class="w-full h-full object-cover rounded-full"
 												onerror={(event) => {
 													const target = event.target as HTMLImageElement;
@@ -335,12 +337,12 @@
 											/>
 										</div>
 										<div>
-											<h3 class="text-white font-semibold">{goalId}</h3>
-											{#if loadingGoals.has(goalId)}
+											<h3 class="text-white font-semibold">{goal.characterId}</h3>
+											{#if loadingGoals.has(goal.characterId)}
 												<div class="text-blue-400 text-sm">Loading route...</div>
-											{:else if goalRoutes[goalId]}
+											{:else if goalRoutes[goal.characterId]}
 												<div class="text-green-400 text-sm">
-													{goalRoutes[goalId].totalGenerations} step(s) • Work Speed: {goalRoutes[goalId].finalWorkSpeed}
+													{goalRoutes[goal.characterId].steps.length} step(s) • Work Speed: {goalRoutes[goal.characterId].final?.workSpeedScore}
 												</div>
 											{:else}
 												<div class="text-red-400 text-sm">No route found</div>
@@ -353,7 +355,7 @@
 											onclick={(e) => { 
 												e.stopPropagation(); 
 												e.preventDefault();
-												removeGoal(goalId); 
+												removeGoal(goal.characterId, goal.mode); 
 											}}
 											class="text-red-400 hover:text-red-300 p-2 hover:bg-red-900/20 rounded"
 											title="Remove goal"
@@ -363,7 +365,7 @@
 											</svg>
 										</button>
 										<svg 
-											class="w-5 h-5 text-slate-400 transition-transform {expandedGoals.has(goalId) ? 'rotate-180' : ''}"
+											class="w-5 h-5 text-slate-400 transition-transform {expandedGoals.has(goal.characterId) ? 'rotate-180' : ''}"
 											fill="none" 
 											stroke="currentColor" 
 											viewBox="0 0 24 24"
@@ -374,9 +376,9 @@
 								</div>
 
 								<!-- Expanded Goal Details -->
-								{#if expandedGoals.has(goalId)}
-									{#if goalRoutes[goalId]}
-										{@const route = goalRoutes[goalId]}
+								{#if expandedGoals.has(goal.characterId)}
+									{#if goalRoutes[goal.characterId]}
+										{@const route = goalRoutes[goal.characterId]}
 									<div class="border-t border-slate-700 p-6">
 										<!-- Final Stats -->
 										<div class="mb-6 bg-slate-800/50 rounded-lg p-4">
@@ -384,19 +386,19 @@
 											<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
 												<div class="text-center">
 													<div class="text-yellow-400 text-xs">🔨 Work Speed</div>
-													<div class="text-white font-bold text-lg">{route.finalWorkSpeed}</div>
+													<div class="text-white font-bold text-lg">{route.final?.workSpeedScore}</div>
 												</div>
 											</div>
 											
 											<!-- Required Passives -->
-											{#if route.requiredPassives?.length > 0}
+											{#if route.final?.passives?.length > 0}
 												<div>
 													<div class="text-slate-400 text-xs mb-2">Required Passives:</div>
 													<div class="flex flex-wrap gap-2">
-														{#each route.requiredPassives as skill}
-															{#if skill && skill.Name}
+														{#each route.final?.passives as skill}
+															{#if skill}
 																<PassiveSkill 
-																	{skill} 
+																	skillId={skill} 
 																	size="sm"
 																	showDescription={false}
 																/>
@@ -408,15 +410,15 @@
 										</div>
 
 										<!-- Breeding Steps -->
-										{#if route.breedingSteps?.length > 0}
+										{#if route?.steps?.length > 0}
 											<div class="space-y-4">
-												<h4 class="text-white font-semibold">📋 Breeding Steps ({route.breedingSteps.length})</h4>
-												{#each route.breedingSteps as step, index}
+												<h4 class="text-white font-semibold">📋 Breeding Steps ({route.steps.length})</h4>
+												{#each route.steps as step, index}
 													<div class="bg-slate-800/50 rounded-lg p-4">
 														<div class="flex items-center justify-between mb-3">
-															<div class="text-slate-400 text-sm">Step {index + 1} (Gen {step.generation})</div>
+															<div class="text-slate-400 text-sm">Step {index + 1} (Gen X)</div>
 															<div class="text-green-400 text-sm">
-																{step.passiveProbability ? Math.round(step.passiveProbability * 100) : 100}% chance
+																{step.pSuccess ? Math.round(step.pSuccess * 100) : 100}% chance
 															</div>
 														</div>
 
@@ -425,8 +427,8 @@
 															<div class="flex items-center space-x-3">
 																<div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-full flex items-center justify-center overflow-hidden">
 																	<img 
-																		src={getPalIconUrl(step.parent1.characterId)} 
-																		alt={step.parent1.name}
+																		src={getPalIconUrl(step.father.tribeId)} 
+																		alt={step.father.tribeId}
 																		class="w-full h-full object-cover rounded-full"
 																		onerror={(event) => {
 																			const target = event.target as HTMLImageElement;
@@ -439,10 +441,10 @@
 																</div>
 																<div class="min-w-0">
 																	<div class="text-white font-medium text-sm truncate">
-																		{step.parent1.name}
+																		{step.father.name}
 																	</div>
 																	<div class="text-xs text-slate-400">
-																		{step.parent1.characterId} • Lv.{step.parent1.level}
+																		{step.father.tribeName} • Lv.{step.father.level}
 																	</div>
 																</div>
 															</div>
@@ -456,8 +458,8 @@
 															<div class="flex items-center space-x-3">
 																<div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-full flex items-center justify-center overflow-hidden">
 																	<img 
-																		src={getPalIconUrl(step.parent2.characterId)} 
-																		alt={step.parent2.name}
+																		src={getPalIconUrl(step.mother.tribeId)} 
+																		alt={step.mother.name}
 																		class="w-full h-full object-cover rounded-full"
 																		onerror={(event) => {
 																			const target = event.target as HTMLImageElement;
@@ -470,10 +472,10 @@
 																</div>
 																<div class="min-w-0">
 																	<div class="text-white font-medium text-sm truncate">
-																		{step.parent2.name}
+																		{step.mother.name}
 																	</div>
 																	<div class="text-xs text-slate-400">
-																		{step.parent2.characterId} • Lv.{step.parent2.level}
+																		{step.mother.tribeName} • Lv.{step.mother.level}
 																	</div>
 																</div>
 															</div>
@@ -489,8 +491,8 @@
 															<div class="flex items-center space-x-3">
 																<div class="w-10 h-10 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-full flex items-center justify-center overflow-hidden">
 																	<img 
-																		src={getPalIconUrl(step.result.characterId)} 
-																		alt={step.result.characterId}
+																		src={getPalIconUrl(step.childTribeId)} 
+																		alt={step.childTribeId}
 																		class="w-full h-full object-cover rounded-full"
 																		onerror={(event) => {
 																			const target = event.target as HTMLImageElement;
@@ -503,24 +505,24 @@
 																</div>
 																<div class="min-w-0">
 																	<div class="text-white font-medium text-sm truncate">
-																		{step.result.name}
+																		{step.childTribeName}
 																	</div>
 																	<div class="text-xs text-green-400">
-																		Work Speed: {step.result.workSpeedScore}
+																		Work Speed: {step.workSpeedScore}
 																	</div>
 																</div>
 															</div>
 														</div>
 
 														<!-- Expected Passives -->
-														{#if step.result.passives?.length > 0}
+														{#if step.passives?.length > 0}
 															<div class="mt-3 pt-3 border-t border-slate-700">
 																<div class="text-slate-400 text-xs mb-2">Expected Passives:</div>
 																<div class="flex flex-wrap gap-1">
-																	{#each step.result.passives as skill}
+																	{#each step.passives as skill}
 																		{#if skill}
 																			<PassiveSkill 
-																				{skill} 
+																				skillId={skill} 
 																				size="sm"
 																				showDescription={false}
 																			/>
@@ -534,14 +536,14 @@
 											</div>
 										{:else}
 											<div class="text-center py-6 text-slate-400">
-												No breeding steps required - you may already have optimal {goalId}
+												No breeding steps required - you may already have optimal {goal.characterId}
 											</div>
 										{/if}
 									</div>
 									{:else}
 										<div class="border-t border-slate-700 p-6">
 											<div class="text-center py-6 text-slate-400">
-												{#if loadingGoals.has(goalId)}
+												{#if loadingGoals.has(goal.characterId)}
 													<div class="text-blue-400">Loading breeding route...</div>
 												{:else}
 													<div class="text-red-400">No route found or failed to load</div>

@@ -1,13 +1,19 @@
 <script lang="ts">
 	import type { PassiveSkillProps } from '$lib/interfaces';
+    import type { LocalizedPassiveSkill } from './interfaces/passive-skills';
+	import { getLocalizedPassive, palPassiveDatabase } from './palDatabase';
+    import { locale } from './stores/locale';
 
 	let { 
 		skill, 
+		skillId,
 		onClick, 
 		clickable = false, 
 		size = 'md', 
 		showDescription = true
 	}: PassiveSkillProps = $props();
+
+	let finalSkill : LocalizedPassiveSkill = $derived(skill??getLocalizedPassive(skillId!, $locale));
 
 	function getPassiveSkillRatingIcon(rating: number): string {
 		if (rating === -1) {
@@ -33,7 +39,7 @@
 
 	function handleClick() {
 		if (clickable && onClick) {
-			onClick(skill.Name);
+			onClick(finalSkill.Name);
 		}
 	}
 
@@ -77,25 +83,25 @@
 </style>
 
 <div
-	class="flex items-start space-x-2 {sizeClasses[validSize].container} rounded border transition-colors {getPassiveSkillRatingColor(skill.Rating)} {clickable ? 'cursor-pointer hover:brightness-110' : ''}"
+	class="flex items-start space-x-2 {sizeClasses[validSize].container} rounded border transition-colors {getPassiveSkillRatingColor(finalSkill.Rating)} {clickable ? 'cursor-pointer hover:brightness-110' : ''}"
 	onclick={handleClick}
-	title={clickable ? `Click to filter by ${skill.Name}` : skill.Description}
+	title={clickable ? `Click to filter by ${finalSkill.Name}` : finalSkill.Description}
 	role={clickable ? 'button' : 'none'}
 	tabindex={clickable ? 0 : -1}
 >
 	<div class="flex-shrink-0">
-		{#if getPassiveSkillRatingIcon(skill.Rating)}
+		{#if getPassiveSkillRatingIcon(finalSkill.Rating)}
 			<img 
-				src={getPassiveSkillRatingIcon(skill.Rating)} 
-				alt="Rating {skill.Rating}" 
-				class="{sizeClasses[validSize].icon} {skill.Rating === -1 ? 'red-mask' : ''}"
+				src={getPassiveSkillRatingIcon(finalSkill.Rating)} 
+				alt="Rating {finalSkill.Rating}" 
+				class="{sizeClasses[validSize].icon} {finalSkill.Rating === -1 ? 'red-mask' : ''}"
 			/>
 		{/if}
 	</div>
 	<div class="flex-1 min-w-0">
-		<div class="{sizeClasses[validSize].name} truncate">{skill.Name}</div>
-		{#if showDescription && skill.Description}
-			<div class="{sizeClasses[validSize].description}">{skill.Description}</div>
+		<div class="{sizeClasses[validSize].name} truncate">{finalSkill.Name}</div>
+		{#if showDescription && finalSkill.Description}
+			<div class="{sizeClasses[validSize].description}">{finalSkill.Description}</div>
 		{/if}
 	</div>
 </div>

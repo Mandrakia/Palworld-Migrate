@@ -44,8 +44,8 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
     for(let pWorld of players) {
         const pSave = saveWatcher.getPlayers(id).find(a=> a.PlayerUid === pWorld.PlayerId && a.InstanceId === pWorld.InstanceId);
         if(!pSave) continue;
-        const pals = serverSave.Characters.filter(a => a instanceof Pal) as Pal[];
-        const palCount = pals.filter(a=> a.ContainerId == pSave?.PalStorageContainerId).length;
+        const pals = serverSave.Characters?.filter((a: any) => a?.IsPlayer === false) || [];
+        const palCount = pals.filter((a: any)=> a.ContainerId == pSave?.PalStorageContainerId).length;
 
         playerCards.push({
             type: "player",

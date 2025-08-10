@@ -6,7 +6,8 @@ import type { PlayerCardData, PalCardData, FullPlayerCardData } from './characte
 
 // PassiveSkill component props
 export interface PassiveSkillProps {
-	skill: LocalizedPassiveSkill;
+	skillId?: string;
+	skill?: LocalizedPassiveSkill;
 	onClick?: (skillName: string) => void;
 	clickable?: boolean;
 	size?: 'sm' | 'md' | 'lg';

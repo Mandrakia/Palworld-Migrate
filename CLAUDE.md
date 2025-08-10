@@ -17,6 +17,7 @@ This is a Palworld toolkit, for reading a dedicated server state and displaying 
 ## Architecture
 
 ### Sav file reading (src/save-edit)
+- **SaveFileWatcher and loader**: Monitors changes in save directories provided by the settings and handles the convertion from .sav to .json and the loading
 - **JsonWrapper**: Base class providing safe path navigation and manipulation of nested JSON structures. Includes utility methods for converting between .NET ticks and JavaScript Dates.
 - **Generated Models**: Type-safe classes auto-generated from schema definitions that extend JsonWrapper:
   - `CharacterSave`: Main character data wrapper

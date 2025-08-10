@@ -26,6 +26,7 @@ interface WorldIdMapping {
   originalId: string;
   uniqueId: string;
   settings: ServerSettings;
+  pathIndex: number;
 }
 
 class SaveFileWatcher {
@@ -86,7 +87,8 @@ class SaveFileWatcher {
           this.worldIdMappings.set(uniqueId, {
             originalId,
             uniqueId,
-            settings: world
+            settings: world,
+            pathIndex,
           });
 
           console.log(`Mapped world: ${originalId} -> ${uniqueId} (path: ${world.directory})`);
@@ -125,9 +127,12 @@ class SaveFileWatcher {
   private async loadInitialCache(): Promise<void> {
     console.log('Loading initial cache for all mapped worlds...');
 
-    for (const [uniqueId, mapping] of this.worldIdMappings.entries()) {
+    // Kick off background loads to avoid blocking HTTP startup
+    for (const [uniqueId] of this.worldIdMappings.entries()) {
       console.log(`Loading initial cache for world: ${uniqueId}`);
-      await this.loadServerCache(uniqueId);
+      this.loadServerCache(uniqueId).catch(err => {
+        console.error(`Background load failed for world ${uniqueId}:`, err);
+      });
     }
   }
 
@@ -342,7 +347,7 @@ class SaveFileWatcher {
 
     try {
       const character = await convertPlayerFile(uniqueId, guid);
-      const filePath = join(mapping.savePath, mapping.originalId, 'Players', `${guid}.sav`);
+      const filePath = join(mapping.settings.directory, mapping.originalId, 'Players', `${guid}.sav`);
       const stats = await stat(filePath);
 
       // Update cache
@@ -384,8 +389,9 @@ class SaveFileWatcher {
   private extractUniqueIdFromPath(filePath: string): string | null {
     // Find which save path this file belongs to and extract the unique ID
     for (const [uniqueId, mapping] of this.worldIdMappings.entries()) {
-      if (filePath.startsWith(mapping.savePath)) {
-        const relativePath = filePath.replace(mapping.savePath, '').replace(/^[\/\\]/, '');
+      const baseDir = mapping.settings.directory;
+      if (filePath.startsWith(baseDir)) {
+        const relativePath = filePath.replace(baseDir, '').replace(/^[\/\\]/, '');
         const parts = relativePath.split(/[\/\\]/);
         if (parts.length > 0 && parts[0] === mapping.originalId) {
           return uniqueId;

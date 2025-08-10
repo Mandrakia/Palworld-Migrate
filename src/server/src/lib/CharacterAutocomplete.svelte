@@ -14,7 +14,7 @@
 
 	interface Props {
 		placeholder?: string;
-		onSelect: (characterId: string, character: CharacterInfo) => void;
+		onSelect: (characterId: string) => void;
 		selectedValue?: string;
 	}
 
@@ -75,7 +75,7 @@
 		searchTerm = character.displayName;
 		isOpen = false;
 		selectedIndex = -1;
-		onSelect(character.id, character);
+		onSelect(character.id);
 	}
 
 	// Handle keyboard navigation

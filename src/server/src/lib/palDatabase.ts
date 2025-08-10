@@ -58,6 +58,7 @@ export interface PalDatabaseEntry {
   level: number;
   CombiRank: number;
   Combinations: Combination[];
+  BiologicalGrade: number;
 }
 export interface Combination  {
     ParentTribeA: string;

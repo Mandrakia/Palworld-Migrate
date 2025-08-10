@@ -11,8 +11,8 @@ import {GetPalStats} from "$lib/interfaces/";
 import type { LocalizedPassiveSkill } from "./interfaces/passive-skills";
 
 export function toPlayerCard(pWorld: Player, pSave: CharacterSave, serverSave: ServerSave) : PlayerCardData{
-    const pals = serverSave.Characters.filter(a => a instanceof Pal) as Pal[];
-    const palCount = pals.filter(a=> a.ContainerId == pSave?.PalStorageContainerId).length;
+    const pals = serverSave.Characters.filter((a: any) => a?.IsPlayer === false);
+    const palCount = pals.filter((a: any)=> a.ContainerId == pSave?.PalStorageContainerId).length;
 
     return {
         type: "player",
@@ -109,12 +109,12 @@ export function toPalCard(pWorld: Pal, serverSave: ServerSave, isCamp: boolean =
         elementType1: palData ? cleanElementType(palData.ElementType1) : undefined,
         elementType2: palData ? cleanElementType(palData.ElementType2) : undefined,
         genusCategory: palData?.GenusCategory?.replace('EPalGenusCategoryType::', ''),
-        baseHp: palData?.Hp,
-        baseMeleeAttack: palData?.MeleeAttack,
-        baseShotAttack: palData?.ShotAttack,
-        baseDefense: palData?.Defense,
-        baseSupport: palData?.Support,
-        baseCraftSpeed: palData?.CraftSpeed,
+        baseHp: palData?.Hp || 0,
+        baseMeleeAttack: palData?.MeleeAttack || 0,
+        baseShotAttack: palData?.ShotAttack || 0,
+        baseDefense: palData?.Defense || 0,
+        baseSupport: palData?.Support || 0,
+        baseCraftSpeed: palData?.CraftSpeed || 0,
         workSuitabilities: palData ? {
             emitFlame: palData.WorkSuitability_EmitFlame,
             watering: palData.WorkSuitability_Watering,
@@ -142,8 +142,12 @@ export function getPlayerPals(pWorld: Player, pSave: CharacterSave, serverSave: 
     if(guild) {
         guildContainers = guild.BaseIds.map(bId => serverSave.BaseCamps.find(x => x.Id === bId)!.ContainerId)
     }
-    const inventoryPals = serverSave.Characters.filter(a => a instanceof Pal && playerContainers.includes(a.ContainerId)).map(a => toPalCard(a as Pal, serverSave));
-    const campPals = serverSave.Characters.filter(a => a instanceof Pal && a.OwnerPlayerUId === pSave.PlayerUid && guildContainers.includes(a.ContainerId)).map(a => toPalCard(a as Pal, serverSave, true));
+    const inventoryPals = serverSave.Characters
+        .filter((a: any) => !a.IsPlayer && playerContainers.includes(a.ContainerId))
+        .map(a => toPalCard(a as unknown as Pal, serverSave));
+    const campPals = serverSave.Characters
+        .filter((a: any) => !a.IsPlayer && a.OwnerPlayerUId === pSave.PlayerUid && guildContainers.includes(a.ContainerId))
+        .map(a => toPalCard(a as unknown as Pal, serverSave, true));
     return [...inventoryPals, ...campPals];
 }
 export function toFullPlayerCard(pWorld: Player, pSave: CharacterSave, serverSave: ServerSave) : FullPlayerCardData {
