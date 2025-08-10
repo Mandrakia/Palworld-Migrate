@@ -148,6 +148,7 @@ export interface BreedingOptions {
   epsilon: number
   minAdditionalDesiredPassives: number
   strategy: Strategy
+  debug: boolean // enable debug logging
   // passivesFirst parameters
   phaseAFrontierSize: number // nodes kept per depth in Phase A
   phaseAMaxDepth: number // births to assemble passives (typically 1-2)
@@ -212,6 +213,7 @@ export class PalBreeder {
       epsilon: 1e-12,
       minAdditionalDesiredPassives: 0,
       strategy: 'beam',
+      debug: false,
       phaseAFrontierSize: 20,
       phaseAMaxDepth: 2,
       phaseAMatesPerState: 25,
@@ -342,7 +344,9 @@ export class PalBreeder {
 
       let best: State | undefined
       for (const s of truncated) {
-        if (this.rankOf(s.pal.tribeId) === desiredRank) { if (!best || s.timeCum < best.timeCum) best = s }
+        if (this.rankOf(s.pal.tribeId) === desiredRank) { 
+          if (!best || this.isStateBetter(s, best, passiveReqs)) best = s 
+        }
       }
       if (best) {
         return {
@@ -396,17 +400,40 @@ export class PalBreeder {
 
     const okAStates: AState[] = []
 
+    let totalIterations = 0
+    const maxIterations = 100000 // Increased for deeper search to find more passives
+    
     for (let d=1; d<=Math.min(phaseAMaxDepth, maxGenerations-1); d++) {
       const next: AState[] = []
       for (const st of frontier) {
         const mates = this.pickMatesPhaseA(st.pal, pals, desiredRank, passiveReqs, minAdditionalDesiredPassives, matesPerState)
         for (const m of mates) {
+          totalIterations++
+          if (totalIterations > maxIterations) {
+            if (this.options.debug) {
+              console.warn(`Breeding algorithm hit iteration limit (${maxIterations}), terminating early. Found ${okAStates.length} valid states so far.`)
+            }
+            break
+          }
           if (m.sex === st.pal.sex) continue
           const childRank = this.childRank(this.rankOf(st.pal.tribeId), this.rankOf(m.tribeId))
           const childTribeId = this.nearestTribeId(childRank)
           const childTribe = this.speciesById.get(childTribeId)!
+          const isFinal = (childTribeId === desiredTribeId)
 
-          const child = this.makeChildNode(st.pal, m as any as GenealogyNode, childTribeId, desiredSet)
+          const fullA = this.fullPassiveSet(st.pal)
+          const fullB = this.fullPassiveSet(m as any as GenealogyNode)
+
+          const p_pass = isFinal ? this.pPassives(fullA, fullB, passiveReqs, minAdditionalDesiredPassives) : 1
+          const p_tal  = isFinal ? this.pTalents(st.pal.talents, m.talents, thresholds) : 1
+          const p_step = p_pass * p_tal
+          if (p_step <= 0) continue
+
+          const time = childTribe.timeToHatch / Math.max(p_step, this.options.epsilon)
+
+          const chosenTalents = (isFinal && this.meetsTalents(st.pal.talents, thresholds)) ? st.pal.talents :
+                                (isFinal && this.meetsTalents(m.talents, thresholds)) ? m.talents : st.pal.talents
+          const child = this.makeChildNode(st.pal, m as any as GenealogyNode, childTribeId, desiredSet, chosenTalents)
 
           const stepObj: Step = {
             father: st.pal.sex === 'Male' ? st.pal : child.parent2!,
@@ -414,10 +441,10 @@ export class PalBreeder {
             talents: child.talents,
             passives: child.passives,
             childTribeId,
-            childCombiRank: childRank,
             childTribeName: childTribe.name,
-            pSuccess: 1, // we don't enforce passives/talents yet in Phase A
-            expectedTime: childTribe.timeToHatch,
+            childCombiRank: childRank,
+            pSuccess: p_step,
+            expectedTime: time,
           }
 
           const ns: AState = { pal: child, depth: d, steps: [...st.steps, stepObj], timeCum: st.timeCum + stepObj.expectedTime }
@@ -429,29 +456,59 @@ export class PalBreeder {
 
           next.push(ns)
         }
+        if (totalIterations > maxIterations) break
+      }
+      if (totalIterations > maxIterations) break
+
+      // Computational boundary: limit array size reasonably
+      const maxNextSize = Math.min(frontierSize * 3, 200) // Less aggressive limit
+      const limitedNext = next.length > maxNextSize ? 
+        next.slice(0, maxNextSize) : next
+
+      // Sort with reasonable computational limit
+      if (limitedNext.length > 0) {
+        limitedNext.sort((a,b)=>{
+          const ar = this.rankOf(a.pal.tribeId), br = this.rankOf(b.pal.tribeId)
+          const ad = Math.abs(ar - desiredRank), bd = Math.abs(br - desiredRank)
+          if (ad !== bd) return ad - bd
+          return a.timeCum - b.timeCum
+        })
+        frontier = limitedNext.slice(0, frontierSize) // Use original frontierSize
       }
 
-      // prune frontier — prefer closer ranks and less time
-      next.sort((a,b)=>{
-        const ar = this.rankOf(a.pal.tribeId), br = this.rankOf(b.pal.tribeId)
-        const ad = Math.abs(ar - desiredRank), bd = Math.abs(br - desiredRank)
-        if (ad !== bd) return ad - bd
-        return a.timeCum - b.timeCum
-      })
-      frontier = next.slice(0, frontierSize)
     }
 
     // If Phase A found nothing, bail
-    if (okAStates.length === 0) return undefined
+    if (this.options.debug) {
+      console.log(`Phase A completed: found ${okAStates.length} valid states after ${totalIterations} iterations`)
+    }
+    if (okAStates.length === 0) {
+      if (this.options.debug) {
+        console.log('No valid Phase A states found - no breeding routes possible')
+      }
+      return undefined
+    }
 
     // Phase B: for each A-candidate, finalize to desired tribe in 1 or 2 hops, enforcing passives+talents at final hop
     let bestRoute: BreedingRoute | undefined
+    
+    // Computational boundary: limit Phase B candidates reasonably
+    const maxPhaseBCandidates = Math.min(okAStates.length, 20)
+    const limitedOkAStates = okAStates.slice(0, maxPhaseBCandidates)
 
-    for (const a of okAStates) {
-      const route = this.finalizeFromA(a, pals, passiveReqs, minAdditionalDesiredPassives, desiredTribeId, thresholds, maxGenerations - a.depth, beamWidth)
+    if (this.options.debug) {
+      console.log(`Phase B: processing ${limitedOkAStates.length} candidates`)
+    }
+    let routesFound = 0
+    for (const a of limitedOkAStates) {
+      const route = this.finalizeFromA(a, pals, passiveReqs, minAdditionalDesiredPassives, desiredTribeId, thresholds, maxGenerations - a.depth, Math.min(beamWidth, 15))
       if (route) {
-        if (!bestRoute || route.expectedTotalTime < bestRoute.expectedTotalTime) bestRoute = route
+        routesFound++
+        if (!bestRoute || this.isRouteBetter(route, bestRoute, passiveReqs)) bestRoute = route
       }
+    }
+    if (this.options.debug) {
+      console.log(`Phase B: found ${routesFound} complete routes from ${limitedOkAStates.length} candidates`)
     }
 
     return bestRoute
@@ -500,9 +557,17 @@ export class PalBreeder {
     remainingGenerations: number,
     beamWidth: number
   ): BreedingRoute | undefined {
-    if (remainingGenerations <= 0) return undefined
+    if (remainingGenerations <= 0) {
+      if (this.options.debug) {
+        console.log(`finalizeFromA: no remaining generations`)
+      }
+      return undefined
+    }
     const desiredRank = this.rankByTribeId.get(desiredTribeId)!
     const desiredSet = new Set(reqs.map(p=>p.passiveId))
+    if (this.options.debug) {
+      console.log(`finalizeFromA: trying to reach ${desiredTribeId} (rank ${desiredRank}) from ${aState.pal.tribeId} with ${remainingGenerations} generations`)
+    }
 
     type BState = { pal: GenealogyNode; steps: Step[]; timeCum: number; depth: number }
     let beam: BState[] = [{ pal: aState.pal, steps: [...aState.steps], timeCum: aState.timeCum, depth: 0 }]
@@ -562,9 +627,15 @@ export class PalBreeder {
       // check finals
       let best: BState | undefined
       for (const s of truncated) {
-        if (this.rankOf(s.pal.tribeId) === desiredRank) { if (!best || s.timeCum < best.timeCum) best = s }
+        if (this.rankOf(s.pal.tribeId) === desiredRank) { 
+          if (!best || this.isStateBetter(s, best, reqs)) best = s 
+        }
       }
+      
       if (best) {
+        if (this.options.debug) {
+          console.log(`finalizeFromA: found route to ${desiredTribeId} with ${best.steps.length} steps`)
+        }
         return {
           steps: best.steps,
           final: best.pal,
@@ -576,6 +647,9 @@ export class PalBreeder {
       beam = truncated
     }
 
+    if (this.options.debug) {
+      console.log(`finalizeFromA: no route found to ${desiredTribeId}`)
+    }
     return undefined
   }
 
@@ -627,17 +701,21 @@ export class PalBreeder {
     const aValid = ar === desiredRank
     const bValid = br === desiredRank
     if (aValid !== bValid) return aValid ? -1 : 1
-    if (a.timeCum !== b.timeCum) return a.timeCum - b.timeCum
-    const aProx = Math.abs(ar - desiredRank)
-    const bProx = Math.abs(br - desiredRank)
-    if (aProx !== bProx) return aProx - bProx
 
-    // tie-breaker: prioritize nodes holding more desired passives (by priority order)
+    // PRIORITY 1: More desired passives (by priority order and count)
     const desiredList = passiveReqs.map(p=>p.passiveId)
     const w = (i:number)=>1/(1+i)
     const aScore = desiredList.reduce((acc,id,idx)=>acc + (a.pal.passives.includes(id)?w(idx):0),0)
     const bScore = desiredList.reduce((acc,id,idx)=>acc + (b.pal.passives.includes(id)?w(idx):0),0)
-    return bScore - aScore
+    if (aScore !== bScore) return bScore - aScore
+
+    // PRIORITY 2: Time (faster is better, but only as tie-breaker)
+    if (a.timeCum !== b.timeCum) return a.timeCum - b.timeCum
+    
+    // PRIORITY 3: Rank proximity (closer to target rank)
+    const aProx = Math.abs(ar - desiredRank)
+    const bProx = Math.abs(br - desiredRank)
+    return aProx - bProx
   }
 
   // =================== Probability & math ===================
@@ -730,6 +808,36 @@ export class PalBreeder {
   }
 
   // =================== Utils ===================
+
+  private isStateBetter(a: { pal: GenealogyNode; timeCum: number }, b: { pal: GenealogyNode; timeCum: number }, passiveReqs: PassiveRequirement[]): boolean {
+    // Calculate passive scores for both states
+    const desiredList = passiveReqs.map(p=>p.passiveId)
+    const w = (i:number)=>1/(1+i)
+    const aScore = desiredList.reduce((acc,id,idx)=>acc + (a.pal.passives.includes(id)?w(idx):0),0)
+    const bScore = desiredList.reduce((acc,id,idx)=>acc + (b.pal.passives.includes(id)?w(idx):0),0)
+    
+    // Performance boundary: if time difference is too large, prioritize time over passives
+    const timeDiffThreshold = 3600 * 24 // 24 hours
+    if (Math.abs(a.timeCum - b.timeCum) > timeDiffThreshold) {
+      return a.timeCum < b.timeCum
+    }
+    
+    // Prioritize higher passive score, then lower time
+    if (aScore !== bScore) return aScore > bScore
+    return a.timeCum < b.timeCum
+  }
+
+  private isRouteBetter(a: BreedingRoute, b: BreedingRoute, passiveReqs: PassiveRequirement[]): boolean {
+    // Calculate passive scores for final pals
+    const desiredList = passiveReqs.map(p=>p.passiveId)
+    const w = (i:number)=>1/(1+i)
+    const aScore = desiredList.reduce((acc,id,idx)=>acc + (a.final.passives.includes(id)?w(idx):0),0)
+    const bScore = desiredList.reduce((acc,id,idx)=>acc + (b.final.passives.includes(id)?w(idx):0),0)
+    
+    // Prioritize higher passive score, then lower time
+    if (aScore !== bScore) return aScore > bScore
+    return a.expectedTotalTime < b.expectedTotalTime
+  }
 
   private hasDesired(p: string[], desiredSet: Set<string>): boolean { return p.some(x=>desiredSet.has(x)) }
   private unionStrings(a: string[] = [], b: string[] = []): string[] { const s = new Set<string>([...a,...b]); return [...s] }

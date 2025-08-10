@@ -52,9 +52,12 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
             
         const breeder = new PalBreeder(species, {
             strategy: 'passivesFirst',          // <— use the new strategy
-            minAdditionalDesiredPassives: 1,    // N optionals on top of mandatory
-            phaseAMaxDepth: 2,                  // assemble passives in ≤2 births
-            phaseAFrontierSize: 30,             // keep top 20 during Phase A
+            minAdditionalDesiredPassives: 0,    // N optionals on top of mandatory (0 for work mode)
+            phaseAMaxDepth: 3,                  // increased from 2 to 3 for deeper search
+            phaseAFrontierSize: 25,             // increased from 15 to 25 for more candidates
+            phaseAMatesPerState: 15,            // increased from 10 to 15 for more exploration
+            beamWidthBase: 12,                  // increased from 8 to 12
+            beamWidthMax: 30,                   // increased from 20 to 30
           });
           let route : BreedingRoute | FailureResult;
           if(mode == 'work') {
