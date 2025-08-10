@@ -15,6 +15,102 @@
     combined union pools contain ≥1 desired non-mandatory.
 */
 
+import { palDatabase } from "./palDatabase";
+
+let breedingCombinationsCache: Map<string, {parent1: string, parent2: string}[]> | null = null;
+
+// Build cached breeding combinations map from palDatabase
+export function getBreedingCombinationsMap(): Map<string, {parent1: string, parent2: string}[]> {
+    if (breedingCombinationsCache) {
+        return breedingCombinationsCache;
+    }
+
+    console.log('Building breeding combinations cache...');
+    const combinationsMap = new Map<string, {parent1: string, parent2: string}[]>();
+
+    const exclusiveCombinations = new Set<string>();
+    // Initialize map for all known characters
+    for (const [_, palData] of Object.entries(palDatabase)) {
+        const characterId = palData.Tribe.replace("EPalTribeID::", "");
+        if (!combinationsMap.has(characterId)) {
+            combinationsMap.set(characterId, [ { parent1: characterId, parent2: characterId }]);
+        }
+    }
+
+    // Add explicit combinations from .Combinations in palDatabase
+    for (const [_, palData] of Object.entries(palDatabase)) {
+        for (const combination of palData.Combinations) {
+            const childId = combination.ChildCharacterID;
+            exclusiveCombinations.add(childId);
+            const parent1 = combination.ParentTribeA;
+            const parent2 = combination.ParentTribeB;
+
+            if (!combinationsMap.has(childId)) {
+                combinationsMap.set(childId, []);
+            }
+            const existing = combinationsMap.get(childId);
+            if (!existing) continue;
+            const alreadyExists = existing.some(combo =>
+                (combo.parent1 === parent1 && combo.parent2 === parent2) ||
+                (combo.parent1 === parent2 && combo.parent2 === parent1)
+            );
+            if (!alreadyExists) {
+                existing.push({ parent1, parent2 });
+            }
+        }
+    }
+
+    // Add CombiRank-based combinations
+    const palEntries = Object.values(palDatabase);
+
+    for (const targetPal of palEntries) {
+        const targetCharacterId = targetPal.Tribe.replace("EPalTribeID::", "");
+        if(exclusiveCombinations.has(targetCharacterId)) continue;
+        const targetRank = targetPal.CombiRank;
+
+        // Find all pairs that produce this target rank
+        for (let i = 0; i < palEntries.length; i++) {
+            for (let j = i; j < palEntries.length; j++) {
+                const pal1 = palEntries[i];
+                const pal2 = palEntries[j];
+
+                const predictedRank = Math.floor((pal1.CombiRank + pal2.CombiRank + 1) / 2);
+
+                if (predictedRank === targetRank) {
+                    const parent1 = pal1.Tribe.replace("EPalTribeID::", "");
+                    const parent2 = pal2.Tribe.replace("EPalTribeID::", "");
+
+                    // Skip if already exists from explicit combinations
+                    const existing = combinationsMap.get(targetCharacterId) || [];
+                    const alreadyExists = existing.some(combo =>
+                        (combo.parent1 === parent1 && combo.parent2 === parent2) ||
+                        (combo.parent1 === parent2 && combo.parent2 === parent1)
+                    );
+
+                    if (!alreadyExists) {
+                        combinationsMap.get(targetCharacterId)!.push({ parent1, parent2 });
+                    }
+                }
+            }
+        }
+    }
+
+    // Log statistics
+    let totalCombinations = 0;
+    for (const [characterId, combinations] of combinationsMap) {
+        totalCombinations += combinations.length;
+        if (combinations.length > 0) {
+            console.log(`${characterId}: ${combinations.length} breeding combinations`);
+        }
+    }
+
+    console.log(`Cached ${totalCombinations} total breeding combinations for ${combinationsMap.size} characters`);
+
+    breedingCombinationsCache = combinationsMap;
+    return combinationsMap;
+}
+
+
 export type Sex = 'Male' | 'Female'
 
 export interface Talents { hp: number; attack: number; defense: number }

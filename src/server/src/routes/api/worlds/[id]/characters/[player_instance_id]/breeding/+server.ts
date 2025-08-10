@@ -305,8 +305,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
                     score: Math.round(workResult.score),
                     bestPassives: workResult.bestPassives,
                     bestCombination: workResult.bestCombination!
-                },
-                allCombinations: combinations
+                }
             };
         }
 

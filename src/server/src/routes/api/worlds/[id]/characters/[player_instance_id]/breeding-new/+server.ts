@@ -53,8 +53,8 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
         const breeder = new PalBreeder(species, {
             strategy: 'passivesFirst',          // <— use the new strategy
             minAdditionalDesiredPassives: 1,    // N optionals on top of mandatory
-            phaseAMaxDepth: 3,                  // assemble passives in ≤2 births
-            phaseAFrontierSize: 60,             // keep top 20 during Phase A
+            phaseAMaxDepth: 2,                  // assemble passives in ≤2 births
+            phaseAFrontierSize: 30,             // keep top 20 during Phase A
           });
           let route : BreedingRoute | FailureResult;
           if(mode == 'work') {
@@ -71,7 +71,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
             ],
             targetCharacter,
             { hp: 0, attack: 0, defense: 0 },
-            10
+            5
           );
         }
         else {
@@ -85,7 +85,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
             ],
             targetCharacter,
             { hp: 30, attack: 80, defense: 60 },
-            10
+            5
           );
         }
           
