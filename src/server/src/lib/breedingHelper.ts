@@ -167,6 +167,7 @@ export interface Step {
   father: GenealogyNode
   mother: GenealogyNode
   passives: string[]
+  talents: Talents
   childTribeId: string
   childTribeName: string
   childCombiRank: number
@@ -326,6 +327,7 @@ export class PalBreeder {
             childTribeId,
             childCombiRank: childRank,
             childTribeName: childTribe.name,
+            talents: child.talents,
             pSuccess: p_step,
             expectedTime: time,
           }
@@ -409,6 +411,7 @@ export class PalBreeder {
           const stepObj: Step = {
             father: st.pal.sex === 'Male' ? st.pal : child.parent2!,
             mother: st.pal.sex === 'Female' ? st.pal : child.parent2!,
+            talents: child.talents,
             passives: child.passives,
             childTribeId,
             childCombiRank: childRank,
@@ -534,6 +537,7 @@ export class PalBreeder {
           const stepObj: Step = {
             father: st.pal.sex === 'Male' ? st.pal : child.parent2!,
             mother: st.pal.sex === 'Female' ? st.pal : child.parent2!,
+            talents: child.talents,
             passives: child.passives,
             childTribeId,
             childTribeName: childTribe.name,
