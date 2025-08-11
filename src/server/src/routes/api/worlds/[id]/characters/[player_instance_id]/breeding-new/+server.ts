@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 import { splitGuids } from '$lib/guidUtils';
 import { getPlayerPals } from '$lib/mappers';
 import { palDatabase, palPassiveDatabase } from '$lib/palDatabase';
-import { PalBreeder, type BreedingRoute, type FailureResult, type GenealogyNode, type PalInfo, type Sex } from '$lib/breedingHelper';
+import { PalBreeder, type BreedingRoute, type FailureResult, type GenealogyNode, type PalInfo, type Sex, type Talents } from '$lib/breedingHelper';
 import type { Player } from '$save-edit/models/Player';
 export const GET: RequestHandler = async ({ params, locals, url }) => {
     try {
@@ -60,8 +60,14 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
         const attackChildComparator = (a: GenealogyNode, b: GenealogyNode) => {
           const scoreA = a.passives.map(x=> palPassiveDatabase[x].Buff.b_Attack).reduce((a, b) => a + b, 0);
           const scoreB = b.passives.map(x=> palPassiveDatabase[x].Buff.b_Attack).reduce((a, b) => a + b, 0);
-          return scoreB - scoreA;
+          return b.passives.includes('CoolTimeReduction_Up_1') && a.passives.includes('CoolTimeReduction_Up_1') ?  scoreB - scoreA : b.passives.includes('CoolTimeReduction_Up_1') ? 1 : -1;
         };
+
+        const talentsComparator = (a: Talents, b: Talents) => {
+          const scoreA = (a.hp + a.attack * 1.5 + a.defense) / 3.5;
+          const scoreB = (b.hp + b.attack * 1.5 + b.defense) / 3.5;
+          return scoreB - scoreA;
+        }
 
         let route : BreedingRoute | FailureResult;
         if(mode == 'work') {
@@ -103,22 +109,25 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
             beamWidthMax: 30,                   // increased from 20 to 30
             childComparator: attackChildComparator, // Custom scoring for work mode
             debug: true,                        // Enable debug logging to see if comparator is used
+            findPathMaxDepth: 5,
+            desiredSet: new Set<string>([
+              'CoolTimeReduction_Up_1',
+              'PAL_ALLAttack_up3',
+              'Rare',
+              'Legend',
+              'Noukin',
+              'PAL_ALLAttack_up2',
+              'PAL_ALLAttack_up1',
+            ]),
+            talentsComparator: talentsComparator
           });
-          route = breeder.GetBestBreedingRoute(
+          route = breeder.GetBestCombatPal(
             pals,
-            [
-              { passiveId: 'CoolTimeReduction_Up_1', isMandatory: true },
-              { passiveId: 'Rare', isMandatory: false },
-              { passiveId: 'Legend', isMandatory: false },
-              { passiveId: 'Noukin', isMandatory: false },
-              { passiveId: 'PAL_ALLAttack_up3', isMandatory: false },
-              { passiveId: 'PAL_ALLAttack_up2', isMandatory: false },
-              { passiveId: 'PAL_ALLAttack_up1', isMandatory: false },
-            ],
+            2,
             targetCharacter,
-            { hp: 60, attack: 80, defense: 60 },
-            5
+            { hp: 60, attack: 80, defense: 60 }
           );
+         
         }
           
         return json(route);
