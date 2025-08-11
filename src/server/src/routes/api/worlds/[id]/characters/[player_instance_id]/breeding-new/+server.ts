@@ -60,7 +60,17 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
         const attackChildComparator = (a: GenealogyNode, b: GenealogyNode) => {
           const scoreA = a.passives.map(x=> palPassiveDatabase[x].Buff.b_Attack).reduce((a, b) => a + b, 0);
           const scoreB = b.passives.map(x=> palPassiveDatabase[x].Buff.b_Attack).reduce((a, b) => a + b, 0);
-          return b.passives.includes('CoolTimeReduction_Up_1') && a.passives.includes('CoolTimeReduction_Up_1') ?  scoreB - scoreA : b.passives.includes('CoolTimeReduction_Up_1') ? 1 : -1;
+          
+          const aHasCoolTime = a.passives.includes('CoolTimeReduction_Up_1');
+          const bHasCoolTime = b.passives.includes('CoolTimeReduction_Up_1');
+          
+          if (aHasCoolTime && bHasCoolTime) {
+            return scoreB - scoreA;
+          } else if (bHasCoolTime) {
+            return 1;
+          } else {
+            return -1;
+          }
         };
 
         const talentsComparator = (a: Talents, b: Talents) => {
@@ -71,7 +81,8 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 
         let route : BreedingRoute | FailureResult;
         if(mode == 'work') {
-        const breeder = new PalBreeder(species, {
+
+          const breeder = new PalBreeder(species, {
             strategy: 'passivesFirst',          // <— use the new strategy
             minAdditionalDesiredPassives: 0,    // N optionals on top of mandatory (0 for work mode)
             phaseAMaxDepth: 3,                  // increased from 2 to 3 for deeper search
@@ -81,22 +92,24 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
             beamWidthMax: 30,                   // increased from 20 to 30
             childComparator: workChildComparator, // Custom scoring for work mode
             debug: true,                        // Enable debug logging to see if comparator is used
+            findPathMaxDepth: 5,
+            desiredSet: new Set<string>([
+              'CraftSpeed_up3',
+              'PAL_CorporateSlave',
+              'CraftSpeed_up2',
+              'Rare',
+              'PAL_conceited',
+              'CraftSpeed_up1'
+            ]),
+            talentsComparator: talentsComparator
           });
-
-           route = breeder.GetBestBreedingRoute(
+          route = breeder.GetBestCombatPal(
             pals,
-            [
-              { passiveId: 'CraftSpeed_up3', isMandatory: false },
-              { passiveId: 'PAL_CorporateSlave', isMandatory: false },              
-              { passiveId: 'CraftSpeed_up2', isMandatory: false },
-              { passiveId: 'Rare', isMandatory: false },
-              { passiveId: 'PAL_conceited', isMandatory: false },
-              { passiveId: 'CraftSpeed_up1', isMandatory: false },
-            ],
+            2,
             targetCharacter,
-            { hp: 0, attack: 0, defense: 0 },
-            5
+            { hp: 0, attack: 0, defense: 0 }
           );
+         
         }
         else {
           const breeder = new PalBreeder(species, {
