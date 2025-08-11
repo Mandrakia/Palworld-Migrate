@@ -8,7 +8,7 @@
 	import CharacterAutocomplete from '$lib/CharacterAutocomplete.svelte';
 	import GoalSection from '$lib/GoalSection.svelte';
 	import BreedingStepTooltip from '$lib/BreedingStepTooltip.svelte';
-	import type { BreedingRoute } from '$lib/breedingHelper';
+	import type { BreedingRoute, FailureResult } from '$lib/breedingHelper';
 	import { onMount } from 'svelte';
 	import { palDatabase, palPassiveDatabase } from '$lib/palDatabase';
 	
@@ -22,6 +22,7 @@
 	// Goal management
 	let goals = $state<{ characterId: string; mode: string }[]>([]);
 	let goalRoutes = $state<Record<string, BreedingRoute>>({});
+	let goalFailures = $state<Record<string, FailureResult>>({});
 	let loadingGoals = $state<Set<string>>(new Set());
 	let expandedGoals = $state(new Set<string>());
 
@@ -89,7 +90,9 @@
 		goals = goals.filter(g => g.characterId !== characterId || g.mode !== mode);
 		const key = goalKey(characterId, mode);
 		delete goalRoutes[key];
+		delete goalFailures[key];
 		goalRoutes = { ...goalRoutes };
+		goalFailures = { ...goalFailures };
 		saveGoals();
 		saveRoutes();
 	}
@@ -107,6 +110,11 @@
 		for (const goal of modeGoals) {
 			await loadGoalRoute(goal.characterId, goal.mode);
 		}
+	}
+
+	// Refresh individual goal
+	async function refreshGoal(characterId: string, mode: string) {
+		await loadGoalRoute(characterId, mode);
 	}
 
 	// Handle mouse events for tooltips
@@ -134,15 +142,34 @@
 		try {
 			const response = await fetch(`/api/worlds/${data.worldId}/characters/${data.combinedId}/breeding-new?characterId=${encodeURIComponent(characterId)}&mode=${mode}`);
 			if (response.ok) {
-				const route: BreedingRoute = await response.json();
-				goalRoutes[key] = route;
+				const route: BreedingRoute | FailureResult = await response.json();
+				if((route as FailureResult).failure){
+					// Store the failure result
+					goalFailures[key] = route as FailureResult;
+					goalFailures = { ...goalFailures };
+					// Remove from successful routes if it was there
+					delete goalRoutes[key];
+					goalRoutes = { ...goalRoutes };
+					return;
+				}
+				// Store successful route
+				goalRoutes[key] = route as BreedingRoute;
 				goalRoutes = { ...goalRoutes };
+				// Remove from failures if it was there
+				delete goalFailures[key];
+				goalFailures = { ...goalFailures };
 				saveRoutes(); // Save to localStorage
 			} else {
 				console.error(`Failed to load route for ${characterId}`);
+				// Store network failure
+				goalFailures[key] = { failure: true, reason: `HTTP ${response.status}: Failed to load route`, triedDegradationUpTo: 0 };
+				goalFailures = { ...goalFailures };
 			}
 		} catch (error) {
 			console.error(`Error loading route for ${characterId}:`, error);
+			// Store network error
+			goalFailures[key] = { failure: true, reason: `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`, triedDegradationUpTo: 0 };
+			goalFailures = { ...goalFailures };
 		} finally {
 			loadingGoals.delete(key);
 			loadingGoals = new Set(loadingGoals);
@@ -379,6 +406,7 @@
 			description="Select a character to see the optimal breeding route for maximum WorkSpeed"
 			{goals}
 			{goalRoutes}
+			{goalFailures}
 			{loadingGoals}
 			{expandedGoals}
 			{hoveredStep}
@@ -387,6 +415,7 @@
 			onRemoveGoal={removeGoal}
 			onToggleGoal={toggleGoal}
 			onRefreshGoals={refreshGoalsByMode}
+			onRefreshGoal={refreshGoal}
 			onStepMouseEnter={handleStepMouseEnter}
 			onStepMouseLeave={handleStepMouseLeave}
 			{goalKey}
@@ -405,6 +434,7 @@
 			description="Select a character to see the optimal breeding route for maximum Combat effectiveness"
 			{goals}
 			{goalRoutes}
+			{goalFailures}
 			{loadingGoals}
 			{expandedGoals}
 			{hoveredStep}
@@ -413,6 +443,7 @@
 			onRemoveGoal={removeGoal}
 			onToggleGoal={toggleGoal}
 			onRefreshGoals={refreshGoalsByMode}
+			onRefreshGoal={refreshGoal}
 			onStepMouseEnter={handleStepMouseEnter}
 			onStepMouseLeave={handleStepMouseLeave}
 			{goalKey}

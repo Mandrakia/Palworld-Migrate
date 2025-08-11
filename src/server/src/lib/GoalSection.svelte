@@ -2,7 +2,8 @@
 	import CharacterAutocomplete from './CharacterAutocomplete.svelte';
 	import BreedingStep from './BreedingStep.svelte';
 	import BreedingStepTooltip from './BreedingStepTooltip.svelte';
-	import type { BreedingRoute } from './breedingHelper';
+	import type { BreedingRoute, FailureResult } from './breedingHelper';
+    import { palDatabase } from './palDatabase';
 
 	interface Props {
 		title: string;
@@ -12,6 +13,7 @@
 		description: string;
 		goals: { characterId: string; mode: string }[];
 		goalRoutes: Record<string, BreedingRoute>;
+		goalFailures: Record<string, FailureResult>;
 		loadingGoals: Set<string>;
 		expandedGoals: Set<string>;
 		hoveredStep: { goalKey: string; stepIndex: number } | null;
@@ -20,6 +22,7 @@
 		onRemoveGoal: (characterId: string, mode: string) => void;
 		onToggleGoal: (goal: { characterId: string; mode: string }) => void;
 		onRefreshGoals: (mode: string) => void;
+		onRefreshGoal: (characterId: string, mode: string) => void;
 		onStepMouseEnter: (event: MouseEvent, goalKey: string, stepIndex: number) => void;
 		onStepMouseLeave: () => void;
 		goalKey: (characterId: string, mode: string) => string;
@@ -34,6 +37,7 @@
 		description, 
 		goals, 
 		goalRoutes, 
+		goalFailures, 
 		loadingGoals, 
 		expandedGoals, 
 		hoveredStep, 
@@ -42,6 +46,7 @@
 		onRemoveGoal, 
 		onToggleGoal, 
 		onRefreshGoals, 
+		onRefreshGoal, 
 		onStepMouseEnter, 
 		onStepMouseLeave, 
 		goalKey, 
@@ -107,20 +112,38 @@
 									/>
 								</div>
 								<div>
-									<h3 class="text-white font-semibold">{goal.characterId}</h3>
+									<h3 class="text-white font-semibold">{palDatabase[goal.characterId].OverrideNameTextID}</h3>
 									{#if loadingGoals.has(goalKey(goal.characterId, goal.mode))}
 										<div class="text-blue-400 text-sm">Loading route...</div>
 									{:else if goalRoutes[goalKey(goal.characterId, goal.mode)]}
 										<div class="text-green-400 text-sm">
 											{goalRoutes[goalKey(goal.characterId, goal.mode)].steps.length} step(s)
 										</div>
+									{:else if goalFailures[goalKey(goal.characterId, goal.mode)]}
+										<div class="text-red-400 text-sm">
+											Failed: {goalFailures[goalKey(goal.characterId, goal.mode)].reason}
+										</div>
 									{:else}
-										<div class="text-red-400 text-sm">No route found</div>
+										<div class="text-slate-400 text-sm">No route loaded</div>
 									{/if}
 								</div>
 							</div>
 
 							<div class="flex items-center space-x-2">
+								<button
+									onclick={(e) => { 
+										e.stopPropagation(); 
+										e.preventDefault();
+										onRefreshGoal(goal.characterId, goal.mode); 
+									}}
+									class="text-blue-400 hover:text-blue-300 p-2 hover:bg-blue-900/20 rounded"
+									title="Refresh this goal"
+									disabled={loadingGoals.has(goalKey(goal.characterId, goal.mode))}
+								>
+									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+									</svg>
+								</button>
 								<button
 									onclick={(e) => { 
 										e.stopPropagation(); 

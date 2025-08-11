@@ -11,6 +11,24 @@
 	}
 
 	let { step, index, getPalIconUrl, onMouseEnter, onMouseLeave }: Props = $props();
+
+	// Helper function to check if pal ID matches guid_guid format (UID_UID)
+	function isGuidFormat(palId: string): boolean {
+		// Check if the ID contains an underscore and has the pattern of two GUIDs separated by underscore
+		const parts = palId.split('_');
+		if (parts.length !== 2) return false;
+		
+		// Basic GUID pattern check (8-4-4-4-12 characters with hyphens)
+		const guidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+		return guidPattern.test(parts[0]) && guidPattern.test(parts[1]);
+	}
+
+	// Get background class based on pal ID format
+	function getPalBackgroundClass(palId: string): string {
+		return isGuidFormat(palId) 
+			? "bg-gradient-to-br from-green-500 to-emerald-600" 
+			: "bg-gradient-to-br from-orange-500 to-red-600";
+	}
 </script>
 
 <div 
@@ -28,7 +46,7 @@
 	<div class="grid grid-cols-1 lg:grid-cols-5 gap-4 items-center">
 		<!-- Parent 1 -->
 		<div class="flex items-center space-x-3">
-			<div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-full flex items-center justify-center overflow-hidden">
+			<div class="w-10 h-10 {getPalBackgroundClass(step.father.id)} rounded-full flex items-center justify-center overflow-hidden">
 				<img 
 					src={getPalIconUrl(step.father.tribeId)} 
 					alt={step.father.tribeId}
@@ -59,7 +77,7 @@
 
 		<!-- Parent 2 -->
 		<div class="flex items-center space-x-3">
-			<div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-full flex items-center justify-center overflow-hidden">
+			<div class="w-10 h-10 {getPalBackgroundClass(step.mother.id)} rounded-full flex items-center justify-center overflow-hidden">
 				<img 
 					src={getPalIconUrl(step.mother.tribeId)} 
 					alt={step.mother.name}
