@@ -2,8 +2,8 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { splitGuids } from '$lib/guidUtils';
 import { getPlayerPals } from '$lib/mappers';
-import { palDatabase } from '$lib/palDatabase';
-import { PalBreeder, type BreedingRoute, type FailureResult, type PalInfo, type Sex } from '$lib/breedingHelper';
+import { palDatabase, palPassiveDatabase } from '$lib/palDatabase';
+import { PalBreeder, type BreedingRoute, type FailureResult, type GenealogyNode, type PalInfo, type Sex } from '$lib/breedingHelper';
 import type { Player } from '$save-edit/models/Player';
 export const GET: RequestHandler = async ({ params, locals, url }) => {
     try {
@@ -50,6 +50,21 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
             name: tribe.OverrideNameTextID,
         }));
             
+        // Create a custom child comparator for work mode (prioritizes work-related passives)
+        const workChildComparator = (a: GenealogyNode, b: GenealogyNode) => {
+          const scoreA = a.passives.map(x=> palPassiveDatabase[x].Buff.b_CraftSpeed).reduce((a, b) => a + b, 0);
+          const scoreB = b.passives.map(x=> palPassiveDatabase[x].Buff.b_CraftSpeed).reduce((a, b) => a + b, 0);
+          return scoreB - scoreA;
+        };
+
+        const attackChildComparator = (a: GenealogyNode, b: GenealogyNode) => {
+          const scoreA = a.passives.map(x=> palPassiveDatabase[x].Buff.b_Attack).reduce((a, b) => a + b, 0);
+          const scoreB = b.passives.map(x=> palPassiveDatabase[x].Buff.b_Attack).reduce((a, b) => a + b, 0);
+          return scoreB - scoreA;
+        };
+
+        let route : BreedingRoute | FailureResult;
+        if(mode == 'work') {
         const breeder = new PalBreeder(species, {
             strategy: 'passivesFirst',          // <— use the new strategy
             minAdditionalDesiredPassives: 0,    // N optionals on top of mandatory (0 for work mode)
@@ -58,9 +73,9 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
             phaseAMatesPerState: 15,            // increased from 10 to 15 for more exploration
             beamWidthBase: 12,                  // increased from 8 to 12
             beamWidthMax: 30,                   // increased from 20 to 30
+            childComparator: workChildComparator, // Custom scoring for work mode
+            debug: true,                        // Enable debug logging to see if comparator is used
           });
-          let route : BreedingRoute | FailureResult;
-          if(mode == 'work') {
 
            route = breeder.GetBestBreedingRoute(
             pals,
@@ -78,16 +93,30 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
           );
         }
         else {
+          const breeder = new PalBreeder(species, {
+            strategy: 'passivesFirst',          // <— use the new strategy
+            minAdditionalDesiredPassives: 0,    // N optionals on top of mandatory (0 for work mode)
+            phaseAMaxDepth: 3,                  // increased from 2 to 3 for deeper search
+            phaseAFrontierSize: 25,             // increased from 15 to 25 for more candidates
+            phaseAMatesPerState: 15,            // increased from 10 to 15 for more exploration
+            beamWidthBase: 12,                  // increased from 8 to 12
+            beamWidthMax: 30,                   // increased from 20 to 30
+            childComparator: attackChildComparator, // Custom scoring for work mode
+            debug: true,                        // Enable debug logging to see if comparator is used
+          });
           route = breeder.GetBestBreedingRoute(
             pals,
             [
               { passiveId: 'CoolTimeReduction_Up_1', isMandatory: true },
+              { passiveId: 'Rare', isMandatory: false },
+              { passiveId: 'Legend', isMandatory: false },
+              { passiveId: 'Noukin', isMandatory: false },
               { passiveId: 'PAL_ALLAttack_up3', isMandatory: false },
               { passiveId: 'PAL_ALLAttack_up2', isMandatory: false },
               { passiveId: 'PAL_ALLAttack_up1', isMandatory: false },
             ],
             targetCharacter,
-            { hp: 30, attack: 80, defense: 60 },
+            { hp: 60, attack: 80, defense: 60 },
             5
           );
         }

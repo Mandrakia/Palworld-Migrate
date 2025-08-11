@@ -254,26 +254,20 @@ class SaveFileWatcher {
       });
 
       watcher
-        .on('change', (path) => {
-          console.log('SaveFileWatcher: File changed:', path);
-          if (this.isRelevantFile(path)) {
-            this.handleFileChange(path);
-          }
-        })
-        .on('add', (path) => {
-          console.log('SaveFileWatcher: File added:', path);
-          if (this.isRelevantFile(path)) {
-            this.handleFileAdd(path);
-          }
-        })
-        .on('unlink', (path) => {
-          console.log('SaveFileWatcher: File deleted:', path);
-          if (this.isRelevantFile(path)) {
-            this.handleFileDelete(path);
-          }
-        })
-        .on('error', (error) => console.error('SaveFileWatcher: File watcher error:', error))
-        .on('ready', () => console.log(`SaveFileWatcher: Ready and watching for changes in: ${world.directory}`));
+      .on('change', (path) => {
+        console.log('SaveFileWatcher: File changed:', path);
+        if (this.isRelevantFile(path)) {
+          this.handleFileChange(path);
+        }
+      })
+      .on('add', (path) => {
+        console.log('SaveFileWatcher: File added:', path);
+        if (this.isRelevantFile(path)) {
+          this.handleFileAdd(path);
+        }
+      })
+      .on('error', (error) => console.error('SaveFileWatcher: File watcher error:', error))
+      .on('ready', () => console.log(`SaveFileWatcher: Ready and watching for changes in: ${world.directory}`));
 
       this.watchers.push(watcher);
     }
@@ -282,6 +276,17 @@ class SaveFileWatcher {
   }
 
   private isRelevantFile(filePath: string): boolean {
+    // Exclude backup directories and other non-active save paths
+    if (filePath.includes('/backup/') || 
+        filePath.includes('/Backup/') || 
+        filePath.includes('/backups/') ||
+        filePath.includes('/archive/') ||
+        filePath.includes('/Archive/') ||
+        filePath.includes('/.tmp') ||
+        filePath.includes('/tmp/')) {
+      return false;
+    }
+
     const fileName = basename(filePath);
     const isLevelSav = fileName === 'Level.sav';
     const isPlayerSav = filePath.includes('/Players/') && fileName.endsWith('.sav');
@@ -300,9 +305,7 @@ class SaveFileWatcher {
     });
   }
 
-  private handleFileDelete(filePath: string): void {
-    this.processFileDelete(filePath);
-  }
+
 
   private debounceFileOperation(filePath: string, operation: () => void): void {
     const key = filePath;
@@ -331,15 +334,7 @@ class SaveFileWatcher {
     }
   }
 
-  private async processFileDelete(filePath: string): Promise<void> {
-    const uniqueId = this.extractUniqueIdFromPath(filePath);
-    if (!uniqueId) return;
 
-    if (filePath.includes('/Players/') && filePath.endsWith('.sav')) {
-      const guid = basename(filePath).replace('.sav', '');
-      this.removePlayers(uniqueId, guid);
-    }
-  }
 
   private async loadSinglePlayerFile(uniqueId: string, guid: string): Promise<void> {
     const mapping = this.worldIdMappings.get(uniqueId);
@@ -372,19 +367,7 @@ class SaveFileWatcher {
     }
   }
 
-  private removePlayers(uniqueId: string, guid: string): void {
-    const serverCache = this.cache[uniqueId];
-    if (serverCache) {
-      serverCache.players = serverCache.players.filter(p => {
-        // Remove based on guid since we may not have PlayerId
-        return !serverCache.playerFiles[guid] ||
-          p.PlayerUid !== serverCache.playerFiles[guid].character.PlayerUid;
-      });
 
-      delete serverCache.playerFiles[guid];
-      console.log(`Removed player from cache: ${guid} for world ${uniqueId}`);
-    }
-  }
 
   private extractUniqueIdFromPath(filePath: string): string | null {
     // Find which save path this file belongs to and extract the unique ID

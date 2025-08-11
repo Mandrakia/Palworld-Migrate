@@ -111,7 +111,7 @@ export function getBreedingCombinationsMap(): Map<string, {parent1: string, pare
 }
 
 
-export type Sex = 'Male' | 'Female'
+export type Sex = 'Male' | 'Female' | 'Neutral'
 
 export interface Talents { hp: number; attack: number; defense: number }
 
@@ -139,6 +139,8 @@ export interface MinTalents { hp: number; attack: number; defense: number }
 
 export type Strategy = 'beam' | 'passivesFirst'
 
+export type ChildComparator = (a: GenealogyNode, b: GenealogyNode) => number
+
 export interface BreedingOptions {
   beamWidthBase: number
   beamWidthPer50Pals: number
@@ -148,11 +150,11 @@ export interface BreedingOptions {
   epsilon: number
   minAdditionalDesiredPassives: number
   strategy: Strategy
-  debug: boolean // enable debug logging
-  // passivesFirst parameters
-  phaseAFrontierSize: number // nodes kept per depth in Phase A
-  phaseAMaxDepth: number // births to assemble passives (typically 1-2)
-  phaseAMatesPerState: number // mates tried per state in Phase A
+  debug: boolean
+  phaseAFrontierSize: number
+  phaseAMaxDepth: number
+  phaseAMatesPerState: number
+  childComparator?: ChildComparator
 }
 
 export interface GenealogyNode extends PalInfo {
@@ -197,12 +199,14 @@ export class PalBreeder {
   private tribeIdByRank: Map<number, string>
   private sortedRanks: number[]
   private options: BreedingOptions
+  private breedingCombinations: Map<string, {parent1: string, parent2: string}[]>
 
   constructor(speciesDb: Tribe[], options?: Partial<BreedingOptions>) {
     this.speciesById = new Map(speciesDb.map(t => [t.tribeId, t]))
     this.rankByTribeId = new Map(speciesDb.map(t => [t.tribeId, t.combiRank]))
     this.tribeIdByRank = new Map(speciesDb.map(t => [t.combiRank, t.tribeId]))
     this.sortedRanks = [...this.tribeIdByRank.keys()].sort((a,b)=>a-b)
+    this.breedingCombinations = getBreedingCombinationsMap()
 
     this.options = {
       beamWidthBase: 10,
@@ -295,7 +299,8 @@ export class PalBreeder {
       for (const state of beam) {
         const mates = this.selectTopKMates(state, pals, desiredRank, thresholds, passiveReqs, minAdditionalDesiredPassives, beamWidth)
         for (const m of mates) {
-          if (m.sex === state.pal.sex) continue
+          // Only check gender compatibility for non-neutral Pals (root Pals)
+          if (m.sex !== 'Neutral' && state.pal.sex !== 'Neutral' && m.sex === state.pal.sex) continue
           const childRank = this.childRank(this.rankOf(state.pal.tribeId), this.rankOf(m.tribeId))
           const childTribeId = this.nearestTribeId(childRank)
           const childTribe = this.speciesById.get(childTribeId)!
@@ -320,7 +325,10 @@ export class PalBreeder {
           const chosenTalents = (isFinal && this.meetsTalents(state.pal.talents, thresholds)) ? state.pal.talents :
                                 (isFinal && this.meetsTalents(m.talents, thresholds)) ? m.talents : state.pal.talents
 
-          const child = this.makeChildNode(state.pal, m as any as GenealogyNode, childTribeId, desiredSet, chosenTalents)
+          // Use optimized child generation for final breeding steps to get the best possible offspring
+          const child = isFinal 
+            ? this.generateOptimalChild(state.pal, m as any as GenealogyNode, childTribeId, passiveReqs, chosenTalents, this.options.childComparator)
+            : this.makeChildNode(state.pal, m as any as GenealogyNode, childTribeId, desiredSet, chosenTalents)
 
           const stepObj: Step = {
             father: state.pal.sex === 'Male' ? state.pal : child.parent2!,
@@ -415,7 +423,8 @@ export class PalBreeder {
             }
             break
           }
-          if (m.sex === st.pal.sex) continue
+          // Only check gender compatibility for non-neutral Pals (root Pals)
+          if (m.sex !== 'Neutral' && st.pal.sex !== 'Neutral' && m.sex === st.pal.sex) continue
           const childRank = this.childRank(this.rankOf(st.pal.tribeId), this.rankOf(m.tribeId))
           const childTribeId = this.nearestTribeId(childRank)
           const childTribe = this.speciesById.get(childTribeId)!
@@ -433,7 +442,9 @@ export class PalBreeder {
 
           const chosenTalents = (isFinal && this.meetsTalents(st.pal.talents, thresholds)) ? st.pal.talents :
                                 (isFinal && this.meetsTalents(m.talents, thresholds)) ? m.talents : st.pal.talents
-          const child = this.makeChildNode(st.pal, m as any as GenealogyNode, childTribeId, desiredSet, chosenTalents)
+          const child = isFinal 
+                                ? this.generateOptimalChild(st.pal, m as any as GenealogyNode, childTribeId, passiveReqs, chosenTalents, this.options.childComparator)
+                                : this.makeChildNode(st.pal, m as any as GenealogyNode, childTribeId, desiredSet, chosenTalents)
 
           const stepObj: Step = {
             father: st.pal.sex === 'Male' ? st.pal : child.parent2!,
@@ -523,7 +534,8 @@ export class PalBreeder {
     const scored: { pal: PalInfo; score: number }[] = []
     for (const m of inventory) {
       if (m.id === statePal.id) continue
-      if (m.sex === statePal.sex) continue
+      // Only check gender compatibility for non-neutral Pals (root Pals)
+      if (m.sex !== 'Neutral' && statePal.sex !== 'Neutral' && m.sex === statePal.sex) continue
       const rM = this.rankOf(m.tribeId)
       const rankProx = 1 / (1 + Math.abs(rM - rMateIdeal))
       const fullB = this.fullPassiveSet(m as any as GenealogyNode)
@@ -577,7 +589,8 @@ export class PalBreeder {
       for (const st of beam) {
         const mates = this.selectTopKMates({ pal: st.pal }, inventory, desiredRank, thresholds, reqs, minAdditional, beamWidth)
         for (const m of mates) {
-          if (m.sex === st.pal.sex) continue
+          // Only check gender compatibility for non-neutral Pals (root Pals)
+          if (m.sex !== 'Neutral' && st.pal.sex !== 'Neutral' && m.sex === st.pal.sex) continue
           const childRank = this.childRank(this.rankOf(st.pal.tribeId), this.rankOf(m.tribeId))
           const childTribeId = this.nearestTribeId(childRank)
           const childTribe = this.speciesById.get(childTribeId)!
@@ -597,7 +610,9 @@ export class PalBreeder {
 
           const chosenTalents = (isFinal && this.meetsTalents(st.pal.talents, thresholds)) ? st.pal.talents :
                                 (isFinal && this.meetsTalents(m.talents, thresholds)) ? m.talents : st.pal.talents
-          const child = this.makeChildNode(st.pal, m as any as GenealogyNode, childTribeId, desiredSet, chosenTalents)
+          const child = isFinal 
+                                ? this.generateOptimalChild(st.pal, m as any as GenealogyNode, childTribeId, reqs, chosenTalents, this.options.childComparator)
+                                : this.makeChildNode(st.pal, m as any as GenealogyNode, childTribeId, desiredSet, chosenTalents)
 
           const stepObj: Step = {
             father: st.pal.sex === 'Male' ? st.pal : child.parent2!,
@@ -795,7 +810,7 @@ export class PalBreeder {
     return {
       id,
       tribeId: childTribeId,
-      sex: Math.random()<0.5 ? 'Male':'Female',
+      sex: 'Neutral', // Hypothetical children are always neutral
       talents: talentsForDisplay || father.talents,
       name: this.speciesById.get(childTribeId)?.name || '',
       tribeName: this.speciesById.get(childTribeId)?.name || '',
@@ -805,6 +820,178 @@ export class PalBreeder {
       parent1: father,
       parent2: mother as any,
     }
+  }
+
+  // =================== Final Child Optimization ===================
+
+  private scoreChild(child: GenealogyNode, passiveReqs: PassiveRequirement[]): number {
+    // Score based on number and priority of desired passives
+    const desiredList = passiveReqs.map(p => p.passiveId)
+    const w = (i: number) => 1 / (1 + i) // Weight by priority order
+    
+    let score = 0
+    for (let i = 0; i < desiredList.length; i++) {
+      if (child.passives.includes(desiredList[i])) {
+        score += w(i)
+      }
+    }
+    
+    // Bonus for having more total desired passives
+    score += child.passives.length * 0.1
+    
+    return score
+  }
+
+  private generateOptimalChild(
+    father: GenealogyNode,
+    mother: GenealogyNode | PalInfo,
+    childTribeId: string,
+    passiveReqs: PassiveRequirement[],
+    talentsForDisplay?: Talents,
+    childComparator?: ChildComparator
+  ): GenealogyNode {
+    const desiredSet = new Set(passiveReqs.map(p => p.passiveId))
+    const fullA = this.fullPassiveSet(father)
+    const fullB = this.fullPassiveSet(mother as any)
+    const merged = this.unionStrings(fullA, fullB)
+    const { desired, trash } = this.splitDesiredAndTrash(merged, desiredSet)
+
+    // Generate multiple possible children with different passive combinations
+    const possibleChildren: GenealogyNode[] = []
+    
+    // Simulate the 4 possible passive inheritance scenarios (1-4 passives)
+    const allPassives = [...desired, ...trash]
+    const passiveCounts = [1, 2, 3, 4]
+    
+    for (const count of passiveCounts) {
+      if (count > allPassives.length) continue
+      
+      // For each count, try to maximize desired passives
+      const combinations = this.generatePassiveCombinations(allPassives, count, desiredSet)
+      
+      for (const passiveCombination of combinations.slice(0, 3)) { // Limit to top 3 combinations per count
+        const childPassives = passiveCombination.filter(p => desiredSet.has(p))
+        const childTrash = passiveCombination.filter(p => !desiredSet.has(p))
+        
+        const child: GenealogyNode = {
+          id: `child:${father.id}x${(mother as any).id}/${childTribeId}:${count}`,
+          tribeId: childTribeId,
+          sex: 'Neutral',
+          talents: talentsForDisplay || father.talents,
+          name: this.speciesById.get(childTribeId)?.name || '',
+          tribeName: this.speciesById.get(childTribeId)?.name || '',
+          level: 1,
+          passives: childPassives,
+          passivePool: childTrash,
+          parent1: father,
+          parent2: mother as any,
+        }
+        
+        possibleChildren.push(child)
+      }
+    }
+    
+    // Select the best child using the provided comparator or fallback to original method
+    if (possibleChildren.length === 0) {
+      // Fallback to original method
+      return this.makeChildNode(father, mother, childTribeId, desiredSet, talentsForDisplay)
+    }
+    
+    if (childComparator) {
+      // Use the injected comparator to find the best child
+      if (this.options.debug) {
+        console.log(`Using custom childComparator to select best child from ${possibleChildren.length} candidates`)
+      }
+      possibleChildren.sort(childComparator)
+      return possibleChildren[0] // Best child after sorting
+    } else {
+      // Fallback to default scoring if no comparator provided
+      let bestChild = possibleChildren[0]
+      let bestScore = this.scoreChild(bestChild, passiveReqs)
+      
+      for (const child of possibleChildren.slice(1)) {
+        const score = this.scoreChild(child, passiveReqs)
+        if (score > bestScore) {
+          bestScore = score
+          bestChild = child
+        }
+      }
+      
+      return bestChild
+    }
+  }
+
+  private generatePassiveCombinations(allPassives: string[], count: number, desiredSet: Set<string>): string[][] {
+    const combinations: string[][] = []
+    const desired = allPassives.filter(p => desiredSet.has(p))
+    const trash = allPassives.filter(p => !desiredSet.has(p))
+    
+    // Prioritize combinations with more desired passives
+    for (let desiredCount = Math.min(count, desired.length); desiredCount >= 0; desiredCount--) {
+      const trashCount = count - desiredCount
+      if (trashCount > trash.length) continue
+      
+      const desiredCombos = this.getCombinations(desired, desiredCount)
+      const trashCombos = trashCount > 0 ? this.getCombinations(trash, trashCount) : [[]]
+      
+      for (const desiredCombo of desiredCombos) {
+        for (const trashCombo of trashCombos) {
+          combinations.push([...desiredCombo, ...trashCombo])
+        }
+      }
+      
+      // Limit combinations to prevent exponential explosion
+      if (combinations.length > 20) break
+    }
+    
+    return combinations
+  }
+
+  private getCombinations<T>(array: T[], size: number): T[][] {
+    if (size === 0) return [[]]
+    if (size > array.length) return []
+    
+    const result: T[][] = []
+    
+    function backtrack(start: number, current: T[]) {
+      if (current.length === size) {
+        result.push([...current])
+        return
+      }
+      
+      for (let i = start; i < array.length; i++) {
+        current.push(array[i])
+        backtrack(i + 1, current)
+        current.pop()
+      }
+    }
+    
+    backtrack(0, [])
+    return result.slice(0, 10) // Limit to prevent performance issues
+  }
+
+  // =================== Breeding Combinations ===================
+
+  private getValidBreedingPairs(parent1TribeId: string, parent2TribeId: string): string[] {
+    // Get all possible offspring from this breeding pair
+    const validOffspring: string[] = []
+    
+    for (const [childTribeId, combinations] of this.breedingCombinations) {
+      const canBreed = combinations.some(combo => 
+        (combo.parent1 === parent1TribeId && combo.parent2 === parent2TribeId) ||
+        (combo.parent1 === parent2TribeId && combo.parent2 === parent1TribeId)
+      )
+      if (canBreed) {
+        validOffspring.push(childTribeId)
+      }
+    }
+    
+    return validOffspring
+  }
+
+  private canBreedToTarget(parent1TribeId: string, parent2TribeId: string, targetTribeId: string): boolean {
+    const validOffspring = this.getValidBreedingPairs(parent1TribeId, parent2TribeId)
+    return validOffspring.includes(targetTribeId)
   }
 
   // =================== Utils ===================
