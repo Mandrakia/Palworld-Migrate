@@ -196,6 +196,7 @@
 
 	// Filter and sort state
 	let hideOwned = $state(false);
+	let displayNameFilter = $state('');
 	let sortBy = $state('combinations' as 'combinations' | 'palName' | 'work' | 'atk');
     $effect(()=>{
         // Auto-set optimization mode based on sort type
@@ -262,6 +263,16 @@
 		// Apply "hide owned" filter
 		if (hideOwned) {
 			results = results.filter(result => !result.isOwned);
+		}
+
+		// Apply display name filter
+		if (displayNameFilter.trim()) {
+			const filterLower = displayNameFilter.toLowerCase().trim();
+			results = results.filter(result => {
+				const palData = palDatabase[result.characterId];
+				const displayName = palData?.displayName || palData?.name || result.characterId;
+				return displayName.toLowerCase().includes(filterLower);
+			});
 		}
 
 		// Sort results using pre-calculated data
@@ -352,51 +363,6 @@
 			</div>
 		</div>
 
-		<!-- Controls -->
-		<div class="mb-8 bg-slate-800 border border-slate-700 rounded-lg p-6">
-			<div class="flex flex-wrap items-center gap-6">
-				<!-- Hide Owned Filter -->
-				<div class="flex items-center space-x-2">
-					<input
-						type="checkbox"
-						id="hideOwned"
-						bind:checked={hideOwned}
-						class="rounded border-slate-600 bg-slate-700 text-blue-500 focus:ring-blue-500 focus:ring-offset-slate-800"
-					/>
-					<label for="hideOwned" class="text-slate-300">Hide already owned</label>
-				</div>
-
-				<!-- Sort Controls -->
-				<div class="flex items-center space-x-4">
-					<div class="flex items-center space-x-2">
-						<label class="text-sm text-slate-400">Sort by:</label>
-						<select 
-							bind:value={sortBy}
-							class="bg-slate-700 border border-slate-600 rounded px-3 py-1 text-sm text-white focus:border-slate-500 focus:outline-none"
-						>
-							<option value="combinations">Combinations Count</option>
-							<option value="palName">Pal Name</option>
-							<option value="work">Work</option>
-							<option value="atk">Atk</option>
-						</select>
-					</div>
-
-					<button
-						onclick={() => sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'}
-						class="flex items-center space-x-1 px-3 py-1 bg-slate-700 border border-slate-600 rounded text-sm text-white hover:bg-slate-600 transition-colors"
-					>
-						<span>{sortOrder === 'asc' ? '↑' : '↓'}</span>
-						<span>{sortOrder === 'asc' ? 'Ascending' : 'Descending'}</span>
-					</button>
-				</div>
-
-				<!-- Results Count -->
-				<div class="ml-auto text-sm text-slate-400">
-					Showing {filteredAndSortedResults().length} of {processedResults().length} results
-				</div>
-			</div>
-		</div>
-
 		<!-- Goals Section -->
 		<GoalSection
 			title="WorkSpeed Goals"
@@ -451,7 +417,62 @@
 		/>
 
 
+		<!-- Controls -->
+		<div class="mb-8 bg-slate-800 border border-slate-700 rounded-lg p-6">
+			<div class="flex flex-wrap items-center gap-6">
+				<!-- Hide Owned Filter -->
+				<div class="flex items-center space-x-2">
+					<input
+						type="checkbox"
+						id="hideOwned"
+						bind:checked={hideOwned}
+						class="rounded border-slate-600 bg-slate-700 text-blue-500 focus:ring-blue-500 focus:ring-offset-slate-800"
+					/>
+					<label for="hideOwned" class="text-slate-300">Hide already owned</label>
+				</div>
 
+				<!-- Display Name Filter -->
+				<div class="flex items-center space-x-2">
+					<label for="displayNameFilter" class="text-sm text-slate-400">Filter by name:</label>
+					<input
+						type="text"
+						id="displayNameFilter"
+						bind:value={displayNameFilter}
+						placeholder="Search pal names..."
+						class="bg-slate-700 border border-slate-600 rounded px-3 py-1 text-sm text-white placeholder-slate-400 focus:border-slate-500 focus:outline-none min-w-[200px]"
+					/>
+				</div>
+
+				<!-- Sort Controls -->
+				<div class="flex items-center space-x-4">
+					<div class="flex items-center space-x-2">
+						<label class="text-sm text-slate-400">Sort by:</label>
+						<select 
+							bind:value={sortBy}
+							class="bg-slate-700 border border-slate-600 rounded px-3 py-1 text-sm text-white focus:border-slate-500 focus:outline-none"
+						>
+							<option value="combinations">Combinations Count</option>
+							<option value="palName">Pal Name</option>
+							<option value="work">Work</option>
+							<option value="atk">Atk</option>
+						</select>
+					</div>
+
+					<button
+						onclick={() => sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'}
+						class="flex items-center space-x-1 px-3 py-1 bg-slate-700 border border-slate-600 rounded text-sm text-white hover:bg-slate-600 transition-colors"
+					>
+						<span>{sortOrder === 'asc' ? '↑' : '↓'}</span>
+						<span>{sortOrder === 'asc' ? 'Ascending' : 'Descending'}</span>
+					</button>
+				</div>
+
+				<!-- Results Count -->
+				<div class="ml-auto text-sm text-slate-400">
+					Showing {filteredAndSortedResults().length} of {processedResults().length} results
+				</div>
+			</div>
+		</div>
 
 		<!-- Breeding Results -->
 		{#if filteredAndSortedResults().length > 0}
