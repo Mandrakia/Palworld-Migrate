@@ -26,12 +26,12 @@
 
 	function getPassiveSkillRatingColor(rating: number): string {
 		const colorMapping: Record<number, string> = {
-			'-1': 'bg-red-900/50 text-red-300 border-red-500',
+			'-1': 'bg-neutral-900/50 text-red-300 border-red-500',
 			0: 'bg-gray-900/50 text-gray-300 border-gray-500',
-			1: 'bg-blue-900/50 text-blue-300 border-blue-500',
-			2: 'bg-green-900/50 text-green-300 border-green-500',
-			3: 'bg-purple-900/50 text-purple-300 border-purple-500',
-			4: 'bg-yellow-900/50 text-yellow-300 border-yellow-500'
+			1: 'bg-neutral-900/50 text-neutral-300 border-neutral-500',
+			2: 'bg-yellow-900/50 text-yellow-300 border-yellow-500',
+			3: 'bg-yellow-900/50 text-yellow-300 border-yellow-500',
+			4: 'bg-teal-900/50 text-teal-300 border-teal-500'
 		};
 		
 		return colorMapping[rating] || 'bg-slate-900/50 text-slate-300 border-slate-500';

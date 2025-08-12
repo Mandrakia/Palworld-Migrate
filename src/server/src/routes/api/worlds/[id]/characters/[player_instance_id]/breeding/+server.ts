@@ -4,11 +4,13 @@ import {Pal} from "$save-edit/models/Pal";
 import type {CharacterCardData, FullPlayerCardData, PalCardData, PlayerCardData} from '$lib/CharacterCardData';
 import {getPlayerPals, toFullPlayerCard, toPalCard} from "$lib/mappers";
 import type {Player} from "$save-edit/models/Player";
-import {getPalData, getPassive, palDatabase} from "$lib/palDatabase";
+import {getLocalizedPassive, getPalData, getPassive, palDatabase} from "$lib/palDatabase";
 import type {ServerSave} from "$save-edit/models/ServerSave";
 import type {Guild} from "$save-edit/models/Guild";
 import type { BreedingResponse, BreedingSource, PassiveSkill } from '$lib/interfaces/index.js';
 import { GetPalStats } from '$lib/stats';
+import { getBreedingResult } from '$lib/breedingHelper';
+import type { LocalizedPassiveSkill } from '$lib/interfaces/passive-skills';
 
 function splitGuids(encoded: string): [string, string] {
     // Parse base36 string as BigInt
@@ -25,46 +27,6 @@ function splitGuids(encoded: string): [string, string] {
     const guid2 = hex.slice(32).replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5');
 
     return [guid1, guid2];
-}
-function getBreedingResult(pal1: PalCardData, pal2: PalCardData): string | null {
-    if (pal1.characterId == null || pal2.characterId == null) {
-        return null;
-    }
-    
-    const bData1 = getPalData(pal1.characterId);
-    const bData2 = getPalData(pal2.characterId);
-    
-    if (!bData1 || !bData2) {
-        return null;
-    }
-
-    // Check for specific breeding combinations first
-    const combination = bData1.Combinations.filter(a => 
-        (a.ParentTribeA == pal1.characterId && a.ParentTribeB == pal2.characterId) || 
-        (a.ParentTribeA == pal2.characterId && a.ParentTribeB == pal1.characterId)
-    );
-    
-    if (combination.length > 0) {
-        return combination[0].ChildCharacterID;
-    }
-    
-    // Calculate breeding rank and find closest match
-    const bFinal = Math.floor((bData1.CombiRank + bData2.CombiRank + 1) / 2);
-    
-    const closest = Object.values(palDatabase)
-        .filter(a => a.Combinations.every(c => c.ChildCharacterID !== a.Tribe.replace("EPalTribeID::", "")))
-        .sort((a, b) => {
-            const distanceA = Math.abs(a.CombiRank - bFinal);
-            const distanceB = Math.abs(b.CombiRank - bFinal);
-            
-            if (distanceA === distanceB) {
-                return a.CombiRank - b.CombiRank;
-            }
-            
-            return distanceA - distanceB;
-        })[0];
-    
-    return closest ? closest.Tribe.replace("EPalTribeID::", "") : null;
 }
 
 function getPalDisplayName(characterId: string): string {
@@ -127,12 +89,12 @@ function calculateBestPossibleStats(
 ): { 
     stats: { hp: number, attack: number, defense: number, craftSpeed: number }, 
     score: number, 
-    bestPassives: PassiveSkill[],
+    bestPassives: LocalizedPassiveSkill[],
     bestCombination: BreedingSource | null
 } {
     let bestScore = -Infinity;
     let bestStats = { hp: 0, attack: 0, defense: 0, craftSpeed: 0 };
-    let bestPassives: PassiveSkill[] = [];
+    let bestPassives: LocalizedPassiveSkill[] = [];
     let bestCombination: BreedingSource | null = null;
     
     // Try each breeding combination
@@ -182,7 +144,7 @@ function calculateBestPossibleStats(
                 if (score > bestScore) {
                     bestScore = score;
                     bestStats = stats;
-                    bestPassives = passives;
+                    bestPassives = passives.map(a=> getLocalizedPassive(a.Id, "fr"));
                     bestCombination = combo;
                 }
             } catch (error) {
@@ -241,21 +203,26 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
         // Generate all possible breeding combinations (ignore gender restrictions)
         const breedingCombinations: Record<string, BreedingSource[]> = {};
         
+        const combiDone : Set<string> = new Set<string>();
         for (let i = 0; i < validPals.length; i++) {
             for (let j = i + 1; j < validPals.length; j++) {
                 const pal1 = validPals[i];
                 const pal2 = validPals[j];
+                if(pal1.gender === pal2.gender) continue;
                 
-                const resultCharacterId = getBreedingResult(pal1, pal2);
+                const resultCharacterId = getBreedingResult(pal1.characterId!, pal2.characterId!);
+                const key = [pal1.instanceId, pal2.instanceId].sort().join('-');
                 if (resultCharacterId) {
                     if (!breedingCombinations[resultCharacterId]) {
                         breedingCombinations[resultCharacterId] = [];
                     }
-                    
+                    if(!combiDone.has(key)){
                     breedingCombinations[resultCharacterId].push({
                         "Pal 1": pal1,
                         "Pal 2": pal2
                     });
+                    combiDone.add(key);
+                }
                 }
             }
         }
@@ -305,7 +272,8 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
                     score: Math.round(workResult.score),
                     bestPassives: workResult.bestPassives,
                     bestCombination: workResult.bestCombination!
-                }
+                },
+                allCombinations: combinations
             };
         }
 
