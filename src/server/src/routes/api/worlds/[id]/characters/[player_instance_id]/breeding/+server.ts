@@ -61,7 +61,12 @@ function generatePassiveCombinations(parent1Passives: PassiveSkill[], parent2Pas
     
     return combinations;
 }
-
+interface BestCombinationResult{ 
+    stats: { hp: number, attack: number, defense: number, craftSpeed: number }, 
+    score: number, 
+    bestPassives: LocalizedPassiveSkill[],
+    bestCombination: BreedingSource | null
+}
 function generateCombinationsOfSize(
     passives: PassiveSkill[], 
     size: number, 
@@ -86,12 +91,7 @@ function calculateBestPossibleStats(
     resultCharacterId: string, 
     combinations: BreedingSource[], 
     mode: 'combat' | 'work'
-): { 
-    stats: { hp: number, attack: number, defense: number, craftSpeed: number }, 
-    score: number, 
-    bestPassives: LocalizedPassiveSkill[],
-    bestCombination: BreedingSource | null
-} {
+): BestCombinationResult {
     let bestScore = -Infinity;
     let bestStats = { hp: 0, attack: 0, defense: 0, craftSpeed: 0 };
     let bestPassives: LocalizedPassiveSkill[] = [];
@@ -199,11 +199,11 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 
         // Filter pals to only include those with valid character IDs (ignore gender)
         const validPals = pals.filter(pal => pal.characterId !== null);
-
-        // Generate all possible breeding combinations (ignore gender restrictions)
-        const breedingCombinations: Record<string, BreedingSource[]> = {};
         
         const combiDone : Set<string> = new Set<string>();
+        const mapBestWork : Map<string, BestCombinationResult> = new Map<string, BestCombinationResult>();
+        const mapBestCombat : Map<string, BestCombinationResult> = new Map<string, BestCombinationResult>(); 
+
         for (let i = 0; i < validPals.length; i++) {
             for (let j = i + 1; j < validPals.length; j++) {
                 const pal1 = validPals[i];
@@ -212,17 +212,32 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
                 
                 const resultCharacterId = getBreedingResult(pal1.characterId!, pal2.characterId!);
                 const key = [pal1.instanceId, pal2.instanceId].sort().join('-');
-                if (resultCharacterId) {
-                    if (!breedingCombinations[resultCharacterId]) {
-                        breedingCombinations[resultCharacterId] = [];
-                    }
-                    if(!combiDone.has(key)){
-                    breedingCombinations[resultCharacterId].push({
+                if (resultCharacterId && !combiDone.has(key)) {
+                    const breedingPair : BreedingSource = {
                         "Pal 1": pal1,
                         "Pal 2": pal2
-                    });
+                    };
+                    if (!mapBestCombat.has(resultCharacterId)) {
+                        const resCombat = calculateBestPossibleStats(resultCharacterId, [breedingPair], 'combat');
+                        mapBestCombat.set(resultCharacterId, resCombat);
+                    }
+                    else{
+                        const resCombat = calculateBestPossibleStats(resultCharacterId, [breedingPair, mapBestCombat.get(resultCharacterId)!.bestCombination!], 'combat');
+                        if(resCombat.bestCombination === breedingPair){
+                            mapBestCombat.set(resultCharacterId, resCombat);
+                        }
+                    }
+                    if(!mapBestWork.has(resultCharacterId)){
+                        const resWork = calculateBestPossibleStats(resultCharacterId, [breedingPair], 'work');
+                        mapBestWork.set(resultCharacterId, resWork);
+                    }
+                    else{
+                        const resWork = calculateBestPossibleStats(resultCharacterId, [breedingPair, mapBestWork.get(resultCharacterId)!.bestCombination!], 'work');
+                        if(resWork.bestCombination === breedingPair){
+                            mapBestWork.set(resultCharacterId, resWork);
+                        }
+                    }
                     combiDone.add(key);
-                }
                 }
             }
         }
@@ -230,9 +245,9 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
         // Calculate optimized results for each character
         const breedingResults: BreedingResponse = {};
 
-        for (const [resultCharacterId, combinations] of Object.entries(breedingCombinations)) {
-            const combatResult = calculateBestPossibleStats(resultCharacterId, combinations, 'combat');
-            const workResult = calculateBestPossibleStats(resultCharacterId, combinations, 'work');
+        for (const resultCharacterId of new Set<string>([...mapBestWork.keys(), ...mapBestCombat.keys()])) {
+            const combatResult = mapBestCombat.get(resultCharacterId)!;
+            const workResult = mapBestWork.get(resultCharacterId)!;
             
             // Get work suitability data for this pal
             const palData = getPalData(resultCharacterId);
@@ -258,7 +273,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
             breedingResults[resultCharacterId] = {
                 characterId: resultCharacterId,
                 displayName: getPalDisplayName(resultCharacterId),
-                combinationCount: combinations.length,
+                combinationCount: 1,
                 workSuitabilities,
                 combatOptimization: {
                     stats: combatResult.stats,
@@ -267,13 +282,13 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
                     bestPassives: combatResult.bestPassives,
                     bestCombination: combatResult.bestCombination!
                 },
-                workOptimization: {
+                workOptimization:  {
                     stats: workResult.stats,
                     score: Math.round(workResult.score),
                     bestPassives: workResult.bestPassives,
                     bestCombination: workResult.bestCombination!
                 },
-                allCombinations: combinations
+                allCombinations: []
             };
         }
 
