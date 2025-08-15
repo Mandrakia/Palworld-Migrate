@@ -201,6 +201,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
         const validPals = pals.filter(pal => pal.characterId !== null);
         
         const combiDone : Set<string> = new Set<string>();
+        const combiDone2 : Set<string> = new Set<string>();
         const mapBestWork : Map<string, BestCombinationResult> = new Map<string, BestCombinationResult>();
         const mapBestCombat : Map<string, BestCombinationResult> = new Map<string, BestCombinationResult>(); 
 
@@ -212,7 +213,8 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
                 
                 const resultCharacterId = getBreedingResult(pal1.characterId!, pal2.characterId!);
                 const key = [pal1.instanceId, pal2.instanceId].sort().join('-');
-                if (resultCharacterId && !combiDone.has(key)) {
+                const key2= pal1.characterId + '-' + pal2.characterId;
+                if (resultCharacterId && !combiDone.has(key) && !combiDone2.has(key2)) {
                     const breedingPair : BreedingSource = {
                         "Pal 1": pal1,
                         "Pal 2": pal2
@@ -238,6 +240,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
                         }
                     }
                     combiDone.add(key);
+                    combiDone2.add(key2);
                 }
             }
         }

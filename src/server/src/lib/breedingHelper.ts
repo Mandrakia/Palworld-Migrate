@@ -263,7 +263,7 @@ export interface BreedingOptions {
   phaseAMaxDepth: number
   phaseAMatesPerState: number
   childComparator?: ChildComparator
-  talentsComparator?: (a: Talents, b: Talents) => number
+  talentsComparator: (a: Talents, b: Talents) => number
   findPathMaxDepth: number  // Maximum depth for FindPath method
   desiredSet: Set<string>
 }
@@ -327,6 +327,11 @@ export class PalBreeder {
       childComparator: undefined,
       findPathMaxDepth: 5,  // Default maximum depth for FindPath,
       desiredSet: new Set<string>(),
+      talentsComparator: (a: Talents, b: Talents) => {
+        const scoreA = (a.hp + a.attack * 1.5 + a.defense) / 3.5;
+        const scoreB = (b.hp + b.attack * 1.5 + b.defense) / 3.5;
+        return scoreB - scoreA;
+      }
     }
     this.options = {
       ...defaultOptions,
@@ -433,12 +438,31 @@ private pPassives(
     const breedingPool = this.GetBestPassivesRoute(pals, maxSteps);
     console.log(breedingPool[0].passives);
     console.log('Breeding pool', breedingPool.length);
-    const palsWithTalents = pals.filter(p=>this.meetsTalents(p.talents, minTalents)).sort((a,b)=> b.talents.attack - a.talents.attack);
-    console.log('Talents', palsWithTalents.length);
+    const palsWithTalents = pals.filter(p=>this.meetsTalents(p.talents, minTalents))
+    
+    // Group by tribeId and keep only the best from each tribe
+    const tribeGroups = new Map<string, PalInfo[]>()
+    for (const pal of palsWithTalents) {
+      if (!tribeGroups.has(pal.tribeId)) {
+        tribeGroups.set(pal.tribeId, [])
+      }
+      tribeGroups.get(pal.tribeId)!.push(pal)
+    }
+    
+    const bestTalentPals: PalInfo[] = []
+    for (const [tribeId, tribePals] of tribeGroups) {
+      // Sort by attack talent (descending) and take the best one
+      const bestPal = tribePals.sort((a,b)=> this.options.talentsComparator(a.talents,b.talents))[0]
+      bestTalentPals.push(bestPal)
+    }
+    
+    // Sort the final list by attack talent
+    bestTalentPals.sort((a, b) => b.talents.attack - a.talents.attack)
+    console.log('Talents', bestTalentPals.length);
 
     const routes : BreedingRoute[] = [];
     for(let passivePal of breedingPool.slice(0,15)){
-      for(let talentPal of palsWithTalents.slice(0,15)){
+      for(let talentPal of bestTalentPals.slice(0,15)){
         const route = this.FindPath(talentPal, passivePal, pals, targetCharacter);
         if(route){
           // route.steps = [{
@@ -484,6 +508,66 @@ private pPassives(
       pal.passives.some(passive => this.options.desiredSet.has(passive))
     )
     
+    // Group pals by tribeId and filter to keep only the best from each tribe
+    const tribeGroups = new Map<string, PalInfo[]>()
+    for (const pal of palsWithPassives) {
+      if (!tribeGroups.has(pal.tribeId)) {
+        tribeGroups.set(pal.tribeId, [])
+      }
+      tribeGroups.get(pal.tribeId)!.push(pal)
+    }
+    
+    // For each tribe, keep only pals that have unique desired passive combinations
+    palsWithPassives = []
+    for (const [tribeId, tribePals] of tribeGroups) {
+      const seenPassiveSets = new Set<string>()
+      const bestPals: PalInfo[] = []
+      
+      // Sort by number of desired passives (descending) to prioritize better pals
+      tribePals.sort((a, b) => {
+        const aDesiredCount = a.passives.filter(p => this.options.desiredSet.has(p)).length
+        const bDesiredCount = b.passives.filter(p => this.options.desiredSet.has(p)).length
+        return bDesiredCount - aDesiredCount
+      })
+      
+      for (const pal of tribePals) {
+        // Get only the desired passives for this pal
+        const desiredPassives = pal.passives.filter(p => this.options.desiredSet.has(p))
+        const passiveKey = desiredPassives.sort().join(',')
+        
+        // Only keep this pal if we haven't seen this exact combination of desired passives
+        // OR if this pal has additional desired passives not covered by existing pals
+        let shouldKeep = false
+        
+        if (!seenPassiveSets.has(passiveKey)) {
+          // This is a unique combination of desired passives
+          shouldKeep = true
+          seenPassiveSets.add(passiveKey)
+        } else {
+          // Check if this pal adds diversity (has passives not in any existing pal)
+          const existingDesiredPassives = new Set<string>()
+          for (const existingPal of bestPals) {
+            existingPal.passives.forEach(p => {
+              if (this.options.desiredSet.has(p)) {
+                existingDesiredPassives.add(p)
+              }
+            })
+          }
+          
+          const hasNewPassives = desiredPassives.some(p => !existingDesiredPassives.has(p))
+          if (hasNewPassives) {
+            shouldKeep = true
+          }
+        }
+        
+        if (shouldKeep) {
+          bestPals.push(pal)
+        }
+      }
+      
+      palsWithPassives.push(...bestPals)
+    }
+    
     if (palsWithPassives.length === 0) {
       return [];
     }
@@ -496,37 +580,84 @@ private pPassives(
     })
     const usedPairs = new Set<string>()
     const pool : PalInfo[] = [...pals];
-    const key = (child:GenealogyNode) => `${child.tribeId}_${child.passives.join('_')}_${child.pSuccess}`;
-    const existing = new Set<string>();
-    for(let p of pool){
-      existing.add(key(p as GenealogyNode));
+    
+    // Create indexed tracking for best pals by tribe
+    const bestByTribe = new Map<string, PalInfo[]>()
+    
+    // Helper function to check if a pal should be kept based on passives and childComparator
+    const shouldKeepPal = (newPal: PalInfo, existingPals: PalInfo[]): boolean => {
+      const newDesiredPassives = new Set(newPal.passives.filter(p => this.options.desiredSet.has(p)))
+      
+      // Check if new pal adds unique desired passives
+      let addsUniquePassives = false
+      for (const existing of existingPals) {
+        const existingDesiredPassives = new Set(existing.passives.filter(p => this.options.desiredSet.has(p)))
+        
+        // If new pal has passives that existing doesn't have, it adds value
+        if (Array.from(newDesiredPassives).some(p => !existingDesiredPassives.has(p))) {
+          addsUniquePassives = true
+          break
+        }
+      }
+      
+      // If it doesn't add unique passives, check if it's better according to childComparator
+      if (!addsUniquePassives && this.options.childComparator && existingPals.length > 0) {
+        // Find the best existing pal using childComparator
+        const sortedExisting = [...existingPals].sort(this.options.childComparator)
+        const bestExisting = sortedExisting[0]
+        
+        // Compare new pal with best existing - if new pal is better (negative result), keep it
+        return this.options.childComparator(newPal as any, bestExisting as any) < 0
+      }
+      
+      return addsUniquePassives || existingPals.length === 0
     }
+    
+    // Initialize bestByTribe with existing pals
+    for (const pal of pool) {
+      if (!bestByTribe.has(pal.tribeId)) {
+        bestByTribe.set(pal.tribeId, [])
+      }
+      bestByTribe.get(pal.tribeId)!.push(pal)
+    }
+    
     for(let gen = 0; gen < maxSteps; gen++){
       const nextPool : GenealogyNode[] = [];
-    // Generate combinations of different pals
-    for (const palWithPassive of palsWithPassives) {
-      for (const palLambda of pool){
-        
-        // Skip if same sex (unless one is neutral)
-        if (palWithPassive.sex !== 'Neutral' && palLambda.sex !== 'Neutral' && palWithPassive.sex === palLambda.sex) continue
-        
-        // Create unique pair ID to avoid duplicates
-        const pairId = [palWithPassive.id, palLambda.id].sort().join('x')
-        if (usedPairs.has(pairId)) continue
-        usedPairs.add(pairId)
-        
-        // Calculate what species would result
-        const childTribeId = this.getBreedingResult(palWithPassive.tribeId, palLambda.tribeId)
-        const child : GenealogyNode = this.makeChildNode(palWithPassive, palLambda, childTribeId)
-        const childKey = key(child);
-        if (existing.has(childKey)) continue;
-        existing.add(childKey);
-        nextPool.push(child);
+      
+      // Generate combinations of different pals
+      for (const palWithPassive of palsWithPassives) {
+        for (const palLambda of pool){
+          
+          // Skip if same sex (unless one is neutral)
+          if (palWithPassive.sex !== 'Neutral' && palLambda.sex !== 'Neutral' && palWithPassive.sex === palLambda.sex) continue
+          
+          // Create unique pair ID to avoid duplicates
+          const pairId = [palWithPassive.id, palLambda.id].sort().join('x')
+          if (usedPairs.has(pairId)) continue
+          usedPairs.add(pairId)
+          
+          // Calculate what species would result
+          const childTribeId = this.getBreedingResult(palWithPassive.tribeId, palLambda.tribeId)
+          const child : GenealogyNode = this.makeChildNode(palWithPassive, palLambda, childTribeId)
+          
+          // Check if we should keep this child based on passives and childComparator
+          const existingTribePals = bestByTribe.get(child.tribeId) || []
+          
+          if (shouldKeepPal(child, existingTribePals)) {
+            // Add to nextPool and update bestByTribe tracking
+            nextPool.push(child)
+            
+            if (!bestByTribe.has(child.tribeId)) {
+              bestByTribe.set(child.tribeId, [])
+            }
+            bestByTribe.get(child.tribeId)!.push(child)
+          }
+        }
       }
+      
+      console.log({PoolSize: pool.length, NewPool: nextPool.length, Generation: gen});
+      pool.push(...nextPool);
     }
-    console.log({PoolSize: pool.length, NewPool: nextPool.length, Generation: gen});
-    pool.push(...nextPool);
-  }
     
     palsWithPassives = pool.filter(pal => 
       pal.passives.some(passive => this.options.desiredSet.has(passive))
