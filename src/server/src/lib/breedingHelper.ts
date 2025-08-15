@@ -68,7 +68,7 @@ for (const parent1 of palEntries) {
            }
            
            // Tie-breaker: by CombiRank (ascending - lowest first)
-           return a[1].CombiRank - b[1].CombiRank;
+           return a[1].ZukanIndex - b[1].ZukanIndex;
        })[0];
 
        //console.log({predictedRank, predictedChild});
@@ -147,7 +147,7 @@ export function getBreedingCombinationsMap(): Map<string, {parent1: string, pare
             }
             
             // Tie-breaker: by CombiRank (ascending - lowest first)
-            return a[1].CombiRank - b[1].CombiRank;
+            return a[1].ZukanIndex - b[1].ZukanIndex;
         })[0];
         if(predictedChild) {
           if(!combinationsMap.has(predictedChild[0])) {
