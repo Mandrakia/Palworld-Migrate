@@ -588,17 +588,18 @@ private pPassives(
     const shouldKeepPal = (newPal: PalInfo, existingPals: PalInfo[]): boolean => {
       const newDesiredPassives = new Set(newPal.passives.filter(p => this.options.desiredSet.has(p)))
       
-      // Check if new pal adds unique desired passives
-      let addsUniquePassives = false
+      // Check if new pal adds unique desired passives not present in ALL existing pals combined
+      const allExistingDesiredPassives = new Set<string>()
       for (const existing of existingPals) {
-        const existingDesiredPassives = new Set(existing.passives.filter(p => this.options.desiredSet.has(p)))
-        
-        // If new pal has passives that existing doesn't have, it adds value
-        if (Array.from(newDesiredPassives).some(p => !existingDesiredPassives.has(p))) {
-          addsUniquePassives = true
-          break
-        }
+        existing.passives.forEach(p => {
+          if (this.options.desiredSet.has(p)) {
+            allExistingDesiredPassives.add(p)
+          }
+        })
       }
+      
+      // Check if new pal has any desired passives not in the combined set
+      const addsUniquePassives = Array.from(newDesiredPassives).some(p => !allExistingDesiredPassives.has(p))
       
       // If it doesn't add unique passives, check if it's better according to childComparator
       if (!addsUniquePassives && this.options.childComparator && existingPals.length > 0) {
