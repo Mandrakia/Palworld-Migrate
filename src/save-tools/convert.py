@@ -374,6 +374,10 @@ def _map_character(node: dict):
         "OwnedTime": ticks_to_date(_getp(node, ["value", "RawData", "value", "object", "SaveParameter", "value", "OwnedTime", "value"])),
         "OwnerPlayerUId": _getp(node, ["value", "RawData", "value", "object", "SaveParameter", "value", "OwnerPlayerUId", "value"]),
         "Rank": _getp(node, ["value", "RawData", "value", "object", "SaveParameter", "value", "Rank", "value", "value"]),
+        "RankHp": _getp(node, ["value", "RawData", "value", "object", "SaveParameter", "value", "Rank_HP", "value", "value"]),
+        "RankDefense": _getp(node, ["value", "RawData", "value", "object", "SaveParameter", "value", "Rank_Defence", "value", "value"]),
+        "RankAttack": _getp(node, ["value", "RawData", "value", "object", "SaveParameter", "value", "Rank_Attack", "value", "value"]),
+        "RankCraftSpeed": _getp(node, ["value", "RawData", "value", "object", "SaveParameter", "value", "Rank_CraftSpeed", "value", "value"]),
     }
 
 def ticks_to_date(ticks: int) -> str:

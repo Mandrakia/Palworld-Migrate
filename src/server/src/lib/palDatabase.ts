@@ -59,6 +59,10 @@ export interface PalDatabaseEntry {
   CombiRank: number;
   Combinations: Combination[];
   BiologicalGrade: number;
+  Friendship_HP: number;
+  Friendship_ShotAttack: number;
+  Friendship_Defense: number;
+  Friendship_CraftSpeed: number;
 }
 export interface Combination  {
     ParentTribeA: string;

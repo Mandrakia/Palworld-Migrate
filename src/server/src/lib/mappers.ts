@@ -79,8 +79,8 @@ export function toPalCard(pWorld: Pal, serverSave: ServerSave, isCamp: boolean =
 
 
     return {
-        currentStats : palData ? GetPalStats(cleanTribe(palData.Tribe), pWorld.TalentHP || 0, pWorld.TalentShot || 0, pWorld.TalentDefense || 0, displayedPassives, pWorld.Level || 1, GetFriendShipRank(pWorld.FriendshipPoint)) : undefined,
-        endStats : palData ? GetPalStats(cleanTribe(palData.Tribe), pWorld.TalentHP || 0, pWorld.TalentShot || 0, pWorld.TalentDefense || 0, displayedPassives,50, 10) : undefined,
+        currentStats : palData ? GetPalStats(cleanTribe(palData.Tribe), pWorld.TalentHP || 0, pWorld.TalentShot || 0, pWorld.TalentDefense || 0, displayedPassives, pWorld.Level || 1, GetFriendShipRank(pWorld.FriendshipPoint), pWorld.Rank - 1, { hp: pWorld.RankHp, attack: pWorld.RankAttack, defense: pWorld.RankDefense, craftspeed: pWorld.RankCraftSpeed }) : undefined,
+        endStats : palData ? GetPalStats(cleanTribe(palData.Tribe), pWorld.TalentHP || 0, pWorld.TalentShot || 0, pWorld.TalentDefense || 0, displayedPassives,60, 10, 4, { hp: 20, attack: 20, defense: 20, craftspeed: 20 }) : undefined,
         characterId: cleanCharacterId,
         isInCamp : isCamp,
         type: "pal",

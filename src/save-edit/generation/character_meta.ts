@@ -430,6 +430,22 @@ export const EntitySchemas: Record<string, EntityMeta> = {
             "Rank": {
                 path: ["value", "RawData", "value", "object", "SaveParameter", "value", "Rank", "value", "value"],
                 type: "number"
+            },
+            "RankHp": {
+                path: ["value", "RawData", "value", "object", "SaveParameter", "value", "Rank_HP", "value", "value"],
+                type: "number"
+            },
+            "RankDefense": {
+                path: ["value", "RawData", "value", "object", "SaveParameter", "value", "Rank_Defence", "value", "value"],
+                type: "number"
+            },
+            "RankAttack": {
+                path: ["value", "RawData", "value", "object", "SaveParameter", "value", "Rank_Attack", "value", "value"],
+                type: "number"
+            },
+            "RankCraftSpeed": {
+                path: ["value", "RawData", "value", "object", "SaveParameter", "value", "Rank_CraftSpeed", "value", "value"],
+                type: "number"
             }
         }
     },

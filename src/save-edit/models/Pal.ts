@@ -120,4 +120,36 @@ export class Pal extends Character {
   set Rank(value: number) {
     this.setPath(["value","RawData","value","object","SaveParameter","value","Rank","value","value"], value);
   }
+
+  get RankHp(): number {
+    return this.getPath(["value","RawData","value","object","SaveParameter","value","Rank_HP","value","value"]);
+  }
+
+  set RankHp(value: number) {
+    this.setPath(["value","RawData","value","object","SaveParameter","value","Rank_HP","value","value"], value);
+  }
+
+  get RankDefense(): number {
+    return this.getPath(["value","RawData","value","object","SaveParameter","value","Rank_Defence","value","value"]);
+  }
+
+  set RankDefense(value: number) {
+    this.setPath(["value","RawData","value","object","SaveParameter","value","Rank_Defence","value","value"], value);
+  }
+
+  get RankAttack(): number {
+    return this.getPath(["value","RawData","value","object","SaveParameter","value","Rank_Attack","value","value"]);
+  }
+
+  set RankAttack(value: number) {
+    this.setPath(["value","RawData","value","object","SaveParameter","value","Rank_Attack","value","value"], value);
+  }
+
+  get RankCraftSpeed(): number {
+    return this.getPath(["value","RawData","value","object","SaveParameter","value","Rank_CraftSpeed","value","value"]);
+  }
+
+  set RankCraftSpeed(value: number) {
+    this.setPath(["value","RawData","value","object","SaveParameter","value","Rank_CraftSpeed","value","value"], value);
+  }
 }

@@ -29,7 +29,14 @@ export function GetPalStats(
 	talent_defense: number,
 	skills: PassiveSkill[],
 	level: number,
-	trust_level: number = 0
+	trust_level: number = 0,
+	stars: number = 0,
+	soul_levels: {
+		hp: number,
+		attack: number,
+		defense: number,
+		craftspeed: number
+	}
 ): CharacterStats {
 	// Get pal species data
 	const palData = getPalData(character_id);
@@ -72,30 +79,37 @@ export function GetPalStats(
 		}
 	}
 
+	const condenserBonus = 1 + (stars * 0.05);
 	// Calculate stats using the correct wiki formulas with Trust Level modified base stats
 	// HP: (500 + 5 * Level + (HP_Stat + Friendship_HP * Trust) * 0.5 * Level * (1 + HP_IV%)) * (1 + HP_Bonus%)
 	const hp = Math.floor(
 		(500 + 5 * level + trust_modified_hp * 0.5 * level * (1 + hp_iv_percent)) * 
-		hpBonusMultiplier
+		hpBonusMultiplier *
+		(1 + (soul_levels.hp * 0.03)) *
+		condenserBonus
 		// Omitting SoulBonus and CondenserBonus as specified
 	);
 
 	// Attack: (100 + (Attack_Stat + Friendship_Attack * Trust) * 0.075 * Level * (1 + Attack_IV%)) * (1 + Attack_Bonus%)
 	const attack = Math.floor(
 		(100 + trust_modified_attack * 0.075 * level * (1 + attack_iv_percent)) * 
-		attackBonusMultiplier
+		attackBonusMultiplier *
+		(1 + (soul_levels.attack * 0.03)) *
+		condenserBonus
 		// Omitting SoulBonus and CondenserBonus as specified
 	);
 
 	// Defense: (100 + (Defense_Stat + Friendship_Defense * Trust) * 0.075 * Level * (1 + Defense_IV%)) * (1 + Defense_Bonus%)
 	const defense = Math.floor(
 		(50 + trust_modified_defense * 0.075 * level * (1 + defense_iv_percent)) *
-		defenseBonusMultiplier
+		defenseBonusMultiplier *
+		(1 + (soul_levels.defense * 0.03)) *
+		condenserBonus
 		// Omitting SoulBonus and CondenserBonus as specified
 	);
 
 	// Work speed: (CraftSpeed + Friendship_CraftSpeed * Trust) * PassiveMultipliers
-	const craftSpeed = 70 * craftSpeedMultiplier;
+	const craftSpeed = Math.floor(70 * craftSpeedMultiplier * (1 + (soul_levels.craftspeed * 0.03)) * condenserBonus);
 	return {
 		hp,
 		attack,
