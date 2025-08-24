@@ -36,6 +36,11 @@ export function GetPalStats(
 		attack: number,
 		defense: number,
 		craftspeed: number
+	} = {
+		hp: 0,
+		attack: 0,
+		defense: 0,
+		craftspeed: 0
 	}
 ): CharacterStats {
 	// Get pal species data
