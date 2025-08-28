@@ -67,7 +67,7 @@
 
 	// Save routes to localStorage
 	function saveRoutes() {
-		const routesStorageKey = `breeding-routes-${data.worldId}-${data.combinedId}`;
+		const routesStorageKey = `breeding-routes-${data.worldId}-${data.combinedId}-v2`;
 		localStorage.setItem(routesStorageKey, JSON.stringify(goalRoutes));
 	}
 
