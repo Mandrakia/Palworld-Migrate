@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 import { splitGuids } from '$lib/guidUtils';
 import { getPlayerPals } from '$lib/mappers';
 import { palDatabase, palPassiveDatabase } from '$lib/palDatabase';
-import { PalBreeder, type BreedingRoute, type FailureResult, type GenealogyNode, type PalInfo, type Sex, type Talents } from '$lib/breedingHelper';
+import { PalBreeder, type BreedingRoute, type BreedingRouteResult, type FailureResult, type GenealogyNode, type PalInfo, type Sex, type Talents } from '$lib/breedingHelper';
 import type { Player } from '$save-edit/models/Player';
 export const GET: RequestHandler = async ({ params, locals, url }) => {
     try {
@@ -79,7 +79,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
           return scoreB - scoreA;
         }
 
-        let route : BreedingRoute | FailureResult;
+        let route : BreedingRouteResult | FailureResult;
         if(mode == 'work') {
 
           const breeder = new PalBreeder(species, {
@@ -103,12 +103,13 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
             ]),
             talentsComparator: talentsComparator
           });
-          route = breeder.GetBestCombatPal(
+          const result = breeder.GetBestPal(
             pals,
             2,
             targetCharacter,
             { hp: 0, attack: 0, defense: 0 }
           );
+          route = result;
          
         }
         else {
@@ -134,12 +135,13 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
             ]),
             talentsComparator: talentsComparator
           });
-          route = breeder.GetBestCombatPal(
+          const result = breeder.GetBestPal(
             pals,
             2,
             targetCharacter,
-            { hp: 60, attack: 80, defense: 60 }
+            { hp: 80, attack: 90, defense: 80 }
           );
+          route = result;
          
         }
           

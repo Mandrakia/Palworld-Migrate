@@ -2,7 +2,7 @@
 	import CharacterAutocomplete from './CharacterAutocomplete.svelte';
 	import BreedingStep from './BreedingStep.svelte';
 	import BreedingStepTooltip from './BreedingStepTooltip.svelte';
-	import type { BreedingRoute, FailureResult } from './breedingHelper';
+	import type { BreedingRoute, BreedingRouteResult, FailureResult, Step } from './breedingHelper';
     import { palDatabase } from './palDatabase';
 
 	interface Props {
@@ -12,19 +12,15 @@
 		placeholder: string;
 		description: string;
 		goals: { characterId: string; mode: string }[];
-		goalRoutes: Record<string, BreedingRoute>;
+		goalRoutes: Record<string, BreedingRouteResult>;
 		goalFailures: Record<string, FailureResult>;
 		loadingGoals: Set<string>;
 		expandedGoals: Set<string>;
-		hoveredStep: { goalKey: string; stepIndex: number } | null;
-		tooltipPosition: { x: number; y: number };
 		onAddGoal: (characterId: string, mode: string) => void;
 		onRemoveGoal: (characterId: string, mode: string) => void;
 		onToggleGoal: (goal: { characterId: string; mode: string }) => void;
 		onRefreshGoals: (mode: string) => void;
 		onRefreshGoal: (characterId: string, mode: string) => void;
-		onStepMouseEnter: (event: MouseEvent, goalKey: string, stepIndex: number) => void;
-		onStepMouseLeave: () => void;
 		goalKey: (characterId: string, mode: string) => string;
 		getPalIconUrl: (tribeId: string) => string;
 	}
@@ -39,24 +35,28 @@
 		goalRoutes, 
 		goalFailures, 
 		loadingGoals, 
-		expandedGoals, 
-		hoveredStep, 
-		tooltipPosition, 
+		expandedGoals,
 		onAddGoal, 
 		onRemoveGoal, 
 		onToggleGoal, 
 		onRefreshGoals, 
-		onRefreshGoal, 
-		onStepMouseEnter, 
-		onStepMouseLeave, 
+		onRefreshGoal,
 		goalKey, 
 		getPalIconUrl 
 	}: Props = $props();
 
+	let tooltipPosition = $state({ x: 0, y: 0 });
+	let onStepHover = (event: MouseEvent, step: Step)=>{
+		hoveredStep = step;
+	};
+	let onMouseMove = (event: MouseEvent)=>{
+		tooltipPosition = { x: event.pageX, y: event.pageY };
+	};
 	let filteredGoals = $derived(goals.filter(g => g.mode === mode));
+	let hoveredStep : Step | null= $state(null);
 </script>
 
-<div class="mb-8 bg-slate-800 border border-slate-700 rounded-lg overflow-hidden">
+<div class="mb-8 bg-slate-800 border border-slate-700 rounded-lg overflow-hidden" onmousemove={onMouseMove}>
 	<div class="p-6 border-b border-slate-700">
 		<h2 class="text-xl font-semibold text-white mb-4">{emoji} {title}</h2>
 		
@@ -116,8 +116,9 @@
 									{#if loadingGoals.has(goalKey(goal.characterId, goal.mode))}
 										<div class="text-blue-400 text-sm">Loading route...</div>
 									{:else if goalRoutes[goalKey(goal.characterId, goal.mode)]}
+										{@const routeResult = goalRoutes[goalKey(goal.characterId, goal.mode)]}
 										<div class="text-green-400 text-sm">
-											{goalRoutes[goalKey(goal.characterId, goal.mode)].steps.length} step(s)
+											2 routes: {routeResult.bestTalents.steps.length}/{routeResult.shortest.steps.length} steps
 										</div>
 									{:else if goalFailures[goalKey(goal.characterId, goal.mode)]}
 										<div class="text-red-400 text-sm">
@@ -171,55 +172,86 @@
 						<!-- Expanded Goal Details -->
 						{#if expandedGoals.has(goalKey(goal.characterId, goal.mode))}
 							{#if goalRoutes[goalKey(goal.characterId, goal.mode)]}
-								{@const route = goalRoutes[goalKey(goal.characterId, goal.mode)]}
+								{@const routeResult = goalRoutes[goalKey(goal.characterId, goal.mode)]}
 								<div class="border-t border-slate-700 p-6">
-									<!-- Final Stats -->
-									<div class="mb-6 bg-slate-800/50 rounded-lg p-4">
-										<h4 class="text-white font-semibold mb-3">🎯 Target Result</h4>
-										{#if goal.mode === 'work'}
-											<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-												<div class="text-center">
-													<div class="text-yellow-400 text-xs">✅ Success Chance</div>
-													<div class="text-white font-bold text-lg">{Math.round((route.successProbability ?? 0) * 100)}%</div>
+									<!-- Three Route Options -->
+									<div class="space-y-6">							
+										<!-- Best Talents Route -->
+										<div class="bg-slate-800/50 rounded-lg p-4">
+											<h4 class="text-white font-semibold mb-3">💪 Best Talents Route ({routeResult.bestTalents.steps.length} steps)</h4>
+											{#if goal.mode === 'work'}
+												<div class="mb-4">
+													<div class="text-yellow-400 text-sm">Success Chance: {Math.round((routeResult.bestTalents.successProbability ?? 0) * 100)}%</div>
 												</div>
-											</div>
-										{:else if goal.mode === 'combat'}
-											<div class="grid grid-cols-3 gap-4 mb-4">
-												<div class="text-center">
-													<div class="text-slate-400 text-xs">HP</div>
-													<div class="text-red-400 font-bold text-lg">{route.final?.talents?.hp ?? '-'}</div>
+											{:else if goal.mode === 'combat'}
+												<div class="grid grid-cols-3 gap-4 mb-4">
+													<div class="text-center">
+														<div class="text-slate-400 text-xs">HP</div>
+														<div class="text-red-400 font-bold">{routeResult.bestTalents.final?.talents?.hp ?? '-'}</div>
+													</div>
+													<div class="text-center">
+														<div class="text-slate-400 text-xs">ATK</div>
+														<div class="text-orange-400 font-bold">{routeResult.bestTalents.final?.talents?.attack ?? '-'}</div>
+													</div>
+													<div class="text-center">
+														<div class="text-slate-400 text-xs">DEF</div>
+														<div class="text-blue-400 font-bold">{routeResult.bestTalents.final?.talents?.defense ?? '-'}</div>
+													</div>
 												</div>
-												<div class="text-center">
-													<div class="text-slate-400 text-xs">ATK</div>
-													<div class="text-orange-400 font-bold text-lg">{route.final?.talents?.attack ?? '-'}</div>
+											{/if}
+											{#if routeResult.bestTalents.steps.length > 0}
+												<div class="space-y-2">
+													{#each routeResult.bestTalents.steps as step, index}
+														<BreedingStep 
+															{step} 
+															{index} 
+															{getPalIconUrl}
+															onMouseEnter={(e)=> onStepHover(e, step)}
+															onMouseLeave={()=> hoveredStep = null}
+														/>
+													{/each}
 												</div>
-												<div class="text-center">
-													<div class="text-slate-400 text-xs">DEF</div>
-													<div class="text-blue-400 font-bold text-lg">{route.final?.talents?.defense ?? '-'}</div>
-												</div>
-											</div>
-										{/if}
-									</div>
+											{/if}
+										</div>
 
-									<!-- Breeding Steps -->
-									{#if route?.steps?.length > 0}
-										<div class="space-y-4">
-											<h4 class="text-white font-semibold">📋 Breeding Steps ({route.steps.length})</h4>
-											{#each route.steps as step, index}
-												<BreedingStep 
-													{step} 
-													{index} 
-													{getPalIconUrl}
-													onMouseEnter={(e) => onStepMouseEnter(e, goalKey(goal.characterId, goal.mode), index)}
-													onMouseLeave={onStepMouseLeave}
-												/>
-											{/each}
+										<!-- Best Passives Route -->
+										<div class="bg-slate-800/50 rounded-lg p-4">
+											<h4 class="text-white font-semibold mb-3">✨ Best Passives Route ({routeResult.shortest.steps.length} steps)</h4>
+											{#if goal.mode === 'work'}
+												<div class="mb-4">
+													<div class="text-yellow-400 text-sm">Success Chance: {Math.round((routeResult.shortest.successProbability ?? 0) * 100)}%</div>
+												</div>
+											{:else if goal.mode === 'combat'}
+												<div class="grid grid-cols-3 gap-4 mb-4">
+													<div class="text-center">
+														<div class="text-slate-400 text-xs">HP</div>
+														<div class="text-red-400 font-bold">{routeResult.shortest.final?.talents?.hp ?? '-'}</div>
+													</div>
+													<div class="text-center">
+														<div class="text-slate-400 text-xs">ATK</div>
+														<div class="text-orange-400 font-bold">{routeResult.shortest.final?.talents?.attack ?? '-'}</div>
+													</div>
+													<div class="text-center">
+														<div class="text-slate-400 text-xs">DEF</div>
+														<div class="text-blue-400 font-bold">{routeResult.shortest.final?.talents?.defense ?? '-'}</div>
+													</div>
+												</div>
+											{/if}
+											{#if routeResult.shortest.steps.length > 0}
+												<div class="space-y-2">
+													{#each routeResult.shortest.steps as step, index}
+														<BreedingStep 
+															{step} 
+															{index} 
+															{getPalIconUrl}
+															onMouseEnter={(e)=> onStepHover(e, step)}
+															onMouseLeave={()=> hoveredStep = null}
+														/>
+													{/each}
+												</div>
+											{/if}
 										</div>
-									{:else}
-										<div class="text-center py-6 text-slate-400">
-											No breeding steps required - you may already have optimal {goal.characterId}
-										</div>
-									{/if}
+									</div>
 								</div>
 							{:else}
 								<div class="border-t border-slate-700 p-6">
@@ -241,10 +273,6 @@
 </div>
 
 <!-- Tooltip -->
-{#if hoveredStep && hoveredStep.goalKey.endsWith(`:${mode}`)}
-	{@const route = goalRoutes[hoveredStep.goalKey]}
-	{@const step = route?.steps[hoveredStep.stepIndex]}
-	{#if step}
-		<BreedingStepTooltip {step} position={tooltipPosition} {getPalIconUrl} />
-	{/if}
+{#if hoveredStep}
+		<BreedingStepTooltip step={hoveredStep} position={tooltipPosition} {getPalIconUrl} />
 {/if}

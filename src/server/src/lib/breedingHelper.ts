@@ -223,6 +223,11 @@ export type Sex = 'Male' | 'Female' | 'Neutral'
 
 export interface Talents { hp: number; attack: number; defense: number }
 
+export interface BreedingRouteResult {
+  
+  shortest: BreedingRoute,
+  bestTalents: BreedingRoute
+}
 export interface PalInfo {
   id: string
   tribeId: string
@@ -433,12 +438,14 @@ private pPassives(
   private getBreedingResult(parent1TribeId: string, parent2TribeId: string): string {
     return this.reverseCombinations.get([parent1TribeId, parent2TribeId].sort().join('x'))!
   }
-  public GetBestCombatPal(pals: PalInfo[], maxSteps: number, targetCharacter: string, minTalents: MinTalents): BreedingRoute | FailureResult
-  {
-    const breedingPool = this.GetBestPassivesRoute(pals, maxSteps);
-    console.log(breedingPool[0].passives);
-    console.log('Breeding pool', breedingPool.length);
-    const palsWithTalents = pals.filter(p=>this.meetsTalents(p.talents, minTalents))
+  /**
+   * GetBestTalentPals - Filters and returns the best pals by talents for each tribe
+   * @param pals - Available pal collection
+   * @param minTalents - Minimum talent requirements
+   * @returns Array of best pals by talents, grouped by tribe
+   */
+  public GetBestTalentPals(pals: PalInfo[], minTalents: MinTalents): PalInfo[] {
+    const palsWithTalents = pals.filter(p => this.meetsTalents(p.talents, minTalents))
     
     // Group by tribeId and keep only the best from each tribe
     const tribeGroups = new Map<string, PalInfo[]>()
@@ -451,42 +458,69 @@ private pPassives(
     
     const bestTalentPals: PalInfo[] = []
     for (const [tribeId, tribePals] of tribeGroups) {
-      // Sort by attack talent (descending) and take the best one
-      const bestPal = tribePals.sort((a,b)=> this.options.talentsComparator(a.talents,b.talents))[0]
+      // Sort by talents using talentsComparator and take the best one
+      const bestPal = tribePals.sort((a, b) => this.options.talentsComparator(a.talents, b.talents))[0]
       bestTalentPals.push(bestPal)
     }
     
-    // Sort the final list by attack talent
-    bestTalentPals.sort((a, b) => b.talents.attack - a.talents.attack)
+    // Sort the final list by talents using talentsComparator
+    bestTalentPals.sort((a, b) => this.options.talentsComparator(a.talents, b.talents))
+    return bestTalentPals
+  }
+
+  public GetBestPal(pals: PalInfo[], maxSteps: number, targetCharacter: string, minTalents: MinTalents): BreedingRouteResult | FailureResult  {
+    const breedingPool = this.GetBestPassivesRoute(pals, maxSteps);
+    console.log(breedingPool[0]?.passives);
+    console.log('Breeding pool', breedingPool.length);
+    
+    const bestTalentPals = this.GetBestTalentPals(pals, minTalents);
     console.log('Talents', bestTalentPals.length);
 
-    const routes : BreedingRoute[] = [];
-    for(let passivePal of breedingPool.slice(0,15)){
-      for(let talentPal of bestTalentPals.slice(0,15)){
+    const allRoutes: BreedingRoute[] = [];
+    
+    // Calculate all routes without early return
+    for (let passivePal of breedingPool.slice(0, 15)) {
+      for (let talentPal of bestTalentPals.slice(0, 15)) {
         const route = this.FindPath(talentPal, passivePal, pals, targetCharacter);
-        if(route){
-          // route.steps = [{
-          //   father: passivePal.parent1!,
-          //   mother: passivePal.parent2!,
-          //   childCombiRank: palDatabase[passivePal.tribeId].CombiRank,
-          //   childTribeId: passivePal.tribeId,
-          //   passives: passivePal.passives,
-          //   childTribeName: palDatabase[passivePal.tribeId].OverrideNameTextID,
-          //   talents: this.sumTalents(passivePal.parent1!.talents) > this.sumTalents(passivePal.parent2!.talents) ? passivePal.parent1!.talents : passivePal.parent2!.talents,
-          //   pSuccess: 1,
-          //   expectedTime: 0,
-          // }, ...route.steps]
-          return route;
+        if (route) {
+          allRoutes.push(route);
         }
       }
     }
-    if(routes.length){
-      return routes[0];
-    }
-    return {
+    
+    const failureResult: FailureResult = {
       reason: 'No breeding route found',
       triedDegradationUpTo: 50,
       failure: true
+    };
+    
+    if (allRoutes.length === 0) {
+      return failureResult
+    }
+    
+    // Find best talents route (sorted by talentsComparator, then by steps length asc)
+    const shortest = [...allRoutes].sort((a, b) => {
+      const childCompare = this.options.childComparator!(a.final as any, b.final as any);
+      if (childCompare !== 0) return childCompare;
+      const stepsCompare = a.steps.length - b.steps.length;
+      if (stepsCompare !== 0) return stepsCompare;
+      const talentsCompare = this.options.talentsComparator(a.final.talents, b.final.talents);
+      return talentsCompare;
+    })[0];
+    
+    // Find best passives route (sorted by childComparator, then by steps length asc)
+    const bestTalents =
+      [...allRoutes].sort((a, b) => {
+        const childCompare = this.options.childComparator!(a.final as any, b.final as any);
+        if (childCompare !== 0) return childCompare;
+        const talentsCompare = this.options.talentsComparator(a.final.talents, b.final.talents);
+        if (talentsCompare !== 0) return talentsCompare;
+        return a.steps.length - b.steps.length;
+      })[0];
+    
+    return {
+      shortest,
+      bestTalents
     };
   }
   
@@ -503,13 +537,13 @@ private pPassives(
   ): GenealogyNode[] {
     
     console.log('Desired passives', this.options.desiredSet)
-    // Find ALL pals that have ANY of the desired passives
+    // Find ALL pals that have ANY of the desired passives and add generation tracking
     let palsWithPassives = pals.filter(pal => 
       pal.passives.some(passive => this.options.desiredSet.has(passive))
-    )
+    ).map(pal => ({ ...pal, generation: 0 }))
     
     // Group pals by tribeId and filter to keep only the best from each tribe
-    const tribeGroups = new Map<string, PalInfo[]>()
+    const tribeGroups = new Map<string, (PalInfo & { generation: number })[]>()
     for (const pal of palsWithPassives) {
       if (!tribeGroups.has(pal.tribeId)) {
         tribeGroups.set(pal.tribeId, [])
@@ -521,7 +555,7 @@ private pPassives(
     palsWithPassives = []
     for (const [tribeId, tribePals] of tribeGroups) {
       const seenPassiveSets = new Set<string>()
-      const bestPals: PalInfo[] = []
+      const bestPals: (PalInfo & { generation: number })[] = []
       
       // Sort by number of desired passives (descending) to prioritize better pals
       tribePals.sort((a, b) => {
@@ -579,7 +613,7 @@ private pPassives(
       return bCount - aCount
     })
     const usedPairs = new Set<string>()
-    const pool : PalInfo[] = [...pals];
+    const pool : (PalInfo | GenealogyNode)[] = [...pals];
     
     // Create indexed tracking for best pals by tribe
     const bestByTribe = new Map<string, PalInfo[]>()
@@ -639,7 +673,10 @@ private pPassives(
           
           // Calculate what species would result
           const childTribeId = this.getBreedingResult(palWithPassive.tribeId, palLambda.tribeId)
-          const child : GenealogyNode = this.makeChildNode(palWithPassive, palLambda, childTribeId)
+          const child : GenealogyNode & { generation: number } = {
+            ...this.makeChildNode(palWithPassive, palLambda, childTribeId),
+            generation: gen + 1
+          }
           
           // Check if we should keep this child based on passives and childComparator
           const existingTribePals = bestByTribe.get(child.tribeId) || []
@@ -660,15 +697,33 @@ private pPassives(
       pool.push(...nextPool);
     }
     
-    palsWithPassives = pool.filter(pal => 
-      pal.passives.some(passive => this.options.desiredSet.has(passive))
-    );
-    palsWithPassives.sort((a, b) => {
+    // Filter pool to get pals with desired passives and add generation tracking for original pals
+    const finalPalsWithPassives = pool
+      .filter(pal => pal.passives.some(passive => this.options.desiredSet.has(passive)))
+      .map(pal => {
+        // If it's already a GenealogyNode with generation, keep it; otherwise add generation 0
+        if ('generation' in pal) {
+          return pal as GenealogyNode & { generation: number };
+        } else {
+          return { ...pal, generation: 0 } as GenealogyNode & { generation: number };
+        }
+      });
+    
+    // Sort by desiredCount desc, generation asc
+    finalPalsWithPassives.sort((a, b) => {
       const aCount = a.passives.filter(p => this.options.desiredSet.has(p)).length
       const bCount = b.passives.filter(p => this.options.desiredSet.has(p)).length
-      return bCount - aCount
+      
+      // First sort by desired count (descending)
+      if (bCount !== aCount) {
+        return bCount - aCount;
+      }
+      
+      // Then sort by generation (ascending)
+      return a.generation - b.generation;
     });
-    return palsWithPassives.sort(this.options.childComparator);
+    
+    return finalPalsWithPassives;
   }
 
   public FindPath(

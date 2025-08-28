@@ -8,7 +8,7 @@
 	import CharacterAutocomplete from '$lib/CharacterAutocomplete.svelte';
 	import GoalSection from '$lib/GoalSection.svelte';
 	import BreedingStepTooltip from '$lib/BreedingStepTooltip.svelte';
-	import type { BreedingRoute, FailureResult } from '$lib/breedingHelper';
+	import type { BreedingRoute, BreedingRouteResult, FailureResult } from '$lib/breedingHelper';
 	import { onMount } from 'svelte';
 	import { palDatabase, palPassiveDatabase } from '$lib/palDatabase';
 	
@@ -21,7 +21,7 @@
 
 	// Goal management
 	let goals = $state<{ characterId: string; mode: string }[]>([]);
-	let goalRoutes = $state<Record<string, BreedingRoute>>({});
+	let goalRoutes = $state<Record<string, BreedingRouteResult>>({});
 	let goalFailures = $state<Record<string, FailureResult>>({});
 	let loadingGoals = $state<Set<string>>(new Set());
 	let expandedGoals = $state(new Set<string>());
@@ -37,7 +37,7 @@
 	// Load goals and routes from localStorage on mount
 	onMount(() => {
 		const storageKey = `breeding-goals-${data.worldId}-${data.combinedId}`;
-		const routesStorageKey = `breeding-routes-${data.worldId}-${data.combinedId}`;
+		const routesStorageKey = `breeding-routes-${data.worldId}-${data.combinedId}-v2`;
 		
 		const savedGoals = localStorage.getItem(storageKey);
 		const savedRoutes = localStorage.getItem(routesStorageKey);
@@ -117,17 +117,6 @@
 		await loadGoalRoute(characterId, mode);
 	}
 
-	// Handle mouse events for tooltips
-	function handleStepMouseEnter(event: MouseEvent, goalKey: string, stepIndex: number) {
-		const rect = (event.target as HTMLElement).getBoundingClientRect();
-		tooltipPosition = { x: rect.left + rect.width / 2, y: rect.top - 10 };
-		hoveredStep = { goalKey, stepIndex };
-	}
-
-	function handleStepMouseLeave() {
-		hoveredStep = null;
-	}
-
 	// Get pal data for tooltip
 	function getPalData(tribeId: string) {
 		return palDatabase[tribeId] || { name: tribeId, talents: {}, passives: [] };
@@ -142,7 +131,7 @@
 		try {
 			const response = await fetch(`/api/worlds/${data.worldId}/characters/${data.combinedId}/breeding-new?characterId=${encodeURIComponent(characterId)}&mode=${mode}`);
 			if (response.ok) {
-				const route: BreedingRoute | FailureResult = await response.json();
+				const route: BreedingRouteResult | FailureResult = await response.json();
 				if((route as FailureResult).failure){
 					// Store the failure result
 					goalFailures[key] = route as FailureResult;
@@ -153,7 +142,7 @@
 					return;
 				}
 				// Store successful route
-				goalRoutes[key] = route as BreedingRoute;
+				goalRoutes[key] = route as BreedingRouteResult;
 				goalRoutes = { ...goalRoutes };
 				// Remove from failures if it was there
 				delete goalFailures[key];
@@ -270,7 +259,7 @@
 			const filterLower = displayNameFilter.toLowerCase().trim();
 			results = results.filter(result => {
 				const palData = palDatabase[result.characterId];
-				const displayName = palData?.displayName || palData?.name || result.characterId;
+				const displayName = palData?.OverrideNameTextID || result.characterId;
 				return displayName.toLowerCase().includes(filterLower);
 			});
 		}
@@ -336,19 +325,6 @@
 	</div>
 </div>
 
-<!-- Tooltip using reusable component -->
-{#if hoveredStep}
-	{@const route = goalRoutes[hoveredStep.goalKey]}
-	{@const step = route?.steps[hoveredStep.stepIndex]}
-	{#if step}
-		<BreedingStepTooltip 
-			{step}
-			position={tooltipPosition}
-			{getPalIconUrl}
-		/>
-	{/if}
-{/if}
-
 	<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 		<!-- Player Info -->
 		<div class="mb-8 bg-slate-800 border border-slate-700 rounded-lg p-6">
@@ -375,15 +351,11 @@
 			{goalFailures}
 			{loadingGoals}
 			{expandedGoals}
-			{hoveredStep}
-			{tooltipPosition}
 			onAddGoal={handleCharacterSelect}
 			onRemoveGoal={removeGoal}
 			onToggleGoal={toggleGoal}
 			onRefreshGoals={refreshGoalsByMode}
 			onRefreshGoal={refreshGoal}
-			onStepMouseEnter={handleStepMouseEnter}
-			onStepMouseLeave={handleStepMouseLeave}
 			{goalKey}
 			{getPalIconUrl}
 		/>
@@ -403,15 +375,11 @@
 			{goalFailures}
 			{loadingGoals}
 			{expandedGoals}
-			{hoveredStep}
-			{tooltipPosition}
 			onAddGoal={handleCharacterSelect}
 			onRemoveGoal={removeGoal}
 			onToggleGoal={toggleGoal}
 			onRefreshGoals={refreshGoalsByMode}
 			onRefreshGoal={refreshGoal}
-			onStepMouseEnter={handleStepMouseEnter}
-			onStepMouseLeave={handleStepMouseLeave}
 			{goalKey}
 			{getPalIconUrl}
 		/>

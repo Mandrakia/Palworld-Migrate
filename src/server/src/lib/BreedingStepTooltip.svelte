@@ -13,7 +13,7 @@
 
 <div 
 	class="fixed z-50 bg-slate-800 border border-slate-600 rounded-lg p-4 shadow-xl max-w-sm pointer-events-none"
-	style="left: {position.x - 150}px; top: {position.y - 10}px; transform: translateY(-100%);"
+	style="left: {position.x + 15}px; top: {position.y + 15}px; transform: translateY(-100%);"
 >
 	<div class="text-white font-semibold mb-3 text-center">Parent Details</div>
 	
