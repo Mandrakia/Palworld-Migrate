@@ -36,7 +36,7 @@
 
 	function formatDate(date?: Date): string {
 		if (!date) return 'Unknown';
-		console.log(date);
+		if(!(date instanceof Date)) date = new Date(date);
 		return new Intl.DateTimeFormat('fr-FR', {
 			dateStyle: 'medium',
 			timeStyle: 'short'
