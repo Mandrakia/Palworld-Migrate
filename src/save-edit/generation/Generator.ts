@@ -90,15 +90,11 @@ const factory = knownPolymorphicTypes.has(baseType)
   }
   if(baseType === 'Date'){
     return `${comment} get ${name}(): ${baseType} {
-    const utcDate = this.ticksToDate(this.getPath(${pathStr}));
-    // Convert UTC to local time by adjusting for timezone offset
-    return new Date(utcDate.getTime() - (utcDate.getTimezoneOffset() * 60000));
+    return this.ticksToDate(this.getPath(${pathStr}));
   }
 
   set ${name}(value: ${baseType}) {
-    // Convert local time to UTC before storing
-    const utcValue = new Date(value.getTime() + (value.getTimezoneOffset() * 60000));
-    this.setPath(${pathStr}, this.dateToTicks(utcValue));
+    this.setPath(${pathStr}, this.dateToTicks(value));
   }`;
   }
   return `${comment}  get ${name}(): ${baseType} {

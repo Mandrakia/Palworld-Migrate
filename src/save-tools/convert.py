@@ -390,12 +390,13 @@ def ticks_to_date(ticks: int) -> str:
         ticks (int): Number of .NET ticks (100-nanosecond intervals since 0001-01-01).
     
     Returns:
-        datetime: Python datetime object in local timezone.
+        datetime: Python datetime object (ticks are already in local time).
     """
     # .NET ticks are from year 1, Python's datetime also supports year 1
     # But we must account for tick size (100ns)
+    # .NET ticks are already stored in local time, no timezone conversion needed
     dt= datetime(1, 1, 1) + timedelta(microseconds=ticks / 10)
-    return dt.astimezone().isoformat()
+    return dt.isoformat()
 
 def _map_slot(node: dict):
     raw = _getp(node, ["RawData", "value"]) or {}
