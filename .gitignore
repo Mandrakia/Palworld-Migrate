@@ -189,3 +189,4 @@ static/T_*.png
 # Local configuration
 config.local.json
 settings.local.json
+*.pyc
