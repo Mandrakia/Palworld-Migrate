@@ -24,7 +24,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
         }
 
         const dungeons : Dungeon[] = rawDungeons;
-        const serverSave = saveWatcher.getServerSave(id);
+        const serverSave = saveWatcher.getServerSave(id)!;
         
         // Get server time data for timestamp conversion
         const serverGameTime = serverSave.GameTime;
@@ -36,8 +36,8 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
         console.log('Current Unix timestamp:', Math.floor(Date.now() / 1000));
         
         return json(dungeons.map(dungeon=>{
-            const state : DungeonSaveData = serverSave.DungeonSaveData.find(a=> a.MarkerPointId === dungeon.Id);
-            const respawn: DungeonPointMarkerSaveData = serverSave.DungeonPointMarkerSaveData.find(a=> a.MarkerPointId === dungeon.Id);
+            const state : DungeonSaveData | undefined = serverSave.DungeonSaveData.find(a=> a.MarkerPointId === dungeon.Id);
+            const respawn: DungeonPointMarkerSaveData | undefined = serverSave.DungeonPointMarkerSaveData.find(a=> a.MarkerPointId === dungeon.Id);
             // Convert game time ticks to real Unix timestamps
             let disappearAt: number | null = null;
             let respawnAt: number | null = null;
@@ -49,7 +49,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
             if (respawn?.NextRespawnGameTime) {
                 respawnAt = toRealTime(respawn.NextRespawnGameTime);
             }
-            
+                        
             return {
                 ...dungeon,
                 Timestamp: serverSave.Timestamp.getTime(),

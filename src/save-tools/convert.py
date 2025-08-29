@@ -491,7 +491,7 @@ def _map_server_save(doc: dict):
         "RealTime": _getp(doc, ["properties", "worldSaveData", "value", "GameTimeSaveData", "value", "RealDateTimeTicks", "value"]),
         "Characters": [ _map_character(x) for x in (wsd.get("CharacterSaveParameterMap", {}) or {}).get("value", []) ],
         "ItemContainers": [ _map_item_container(x) for x in (wsd.get("ItemContainerSaveData", {}) or {}).get("value", []) ],
-        "Timestamp": _getp(doc, ["properties", "Timestamp", "value"]),
+        "Timestamp": ticks_to_date(_getp(doc, ["properties", "Timestamp", "value"])),
         "CharacterContainers": [ _map_character_container(x) for x in (wsd.get("CharacterContainerSaveData", {}) or {}).get("value", []) ],
         "Groups": [ _map_group(x) for x in (wsd.get("GroupSaveDataMap", {}) or {}).get("value", []) ],
         "BaseCamps": [ _map_basecamp(x) for x in (wsd.get("BaseCampSaveData", {}) or {}).get("value", []) ],

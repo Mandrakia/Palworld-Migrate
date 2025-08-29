@@ -59,6 +59,43 @@ async function ensureConvertService(): Promise<void> {
     }
 }
 
+function isISODateString(value: string): boolean {
+    // Check if string matches ISO 8601 format and is a valid date
+    const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z?$/;
+    if (!isoRegex.test(value)) return false;
+    
+    const date = new Date(value);
+    return !isNaN(date.getTime());
+}
+
+function convertISOStringsToDate(obj: any): any {
+    if (obj === null || obj === undefined) {
+        return obj;
+    }
+    
+    if (typeof obj === 'string') {
+        if(isISODateString(obj))
+        {
+            return new Date(obj) 
+        }
+        return obj;
+    }
+    
+    if (Array.isArray(obj)) {
+        return obj.map(convertISOStringsToDate);
+    }
+    
+    if (typeof obj === 'object') {
+        const result: any = {};
+        for (const [key, value] of Object.entries(obj)) {
+            result[key] = convertISOStringsToDate(value);
+        }
+        return result;
+    }
+    
+    return obj;
+}
+
 async function callConvert(filename: string, mode?: "server" | "player"): Promise<any> {
     await ensureConvertService();
 
@@ -84,7 +121,8 @@ async function callConvert(filename: string, mode?: "server" | "player"): Promis
             const txt = await res.text().catch(() => "");
             throw new Error(`convert API ${res.status} ${res.statusText}: ${txt}`);
         }
-        return await res.json();
+        const jsonData = await res.json();
+        return convertISOStringsToDate(jsonData);
     } finally {
         clearTimeout(id);
     }
