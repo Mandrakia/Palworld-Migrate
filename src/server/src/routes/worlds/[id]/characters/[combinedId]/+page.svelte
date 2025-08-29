@@ -36,10 +36,11 @@
 
 	function formatDate(date?: Date): string {
 		if (!date) return 'Unknown';
-		return new Intl.DateTimeFormat('en-US', {
+		console.log(date);
+		return new Intl.DateTimeFormat('fr-FR', {
 			dateStyle: 'medium',
 			timeStyle: 'short'
-		}).format(new Date(date));
+		}).format(date);
 	}
 
 	function getTalentIcon(talentName: string): string {

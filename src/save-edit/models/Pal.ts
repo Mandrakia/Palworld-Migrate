@@ -98,11 +98,15 @@ export class Pal extends Character {
   }
 
  get OwnedTime(): Date {
-    return this.ticksToDate(this.getPath(["value","RawData","value","object","SaveParameter","value","OwnedTime","value"]));
+    const utcDate = this.ticksToDate(this.getPath(["value","RawData","value","object","SaveParameter","value","OwnedTime","value"]));
+    // Convert UTC to local time by adjusting for timezone offset
+    return new Date(utcDate.getTime() - (utcDate.getTimezoneOffset() * 60000));
   }
 
   set OwnedTime(value: Date) {
-    this.setPath(["value","RawData","value","object","SaveParameter","value","OwnedTime","value"], this.dateToTicks(value));
+    // Convert local time to UTC before storing
+    const utcValue = new Date(value.getTime() + (value.getTimezoneOffset() * 60000));
+    this.setPath(["value","RawData","value","object","SaveParameter","value","OwnedTime","value"], this.dateToTicks(utcValue));
   }
 
   get OwnerPlayerUId(): string {

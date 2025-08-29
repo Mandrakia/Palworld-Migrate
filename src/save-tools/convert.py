@@ -4,7 +4,7 @@ import argparse
 import json
 import os
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from palworld_save_tools.gvas import GvasFile
 from palworld_save_tools.json_tools import CustomEncoder
 from palworld_save_tools.palsav import compress_gvas_to_sav, decompress_sav_to_gvas
@@ -390,12 +390,12 @@ def ticks_to_date(ticks: int) -> str:
         ticks (int): Number of .NET ticks (100-nanosecond intervals since 0001-01-01).
     
     Returns:
-        datetime: Python datetime object in UTC.
+        datetime: Python datetime object in local timezone.
     """
     # .NET ticks are from year 1, Python's datetime also supports year 1
     # But we must account for tick size (100ns)
     dt= datetime(1, 1, 1) + timedelta(microseconds=ticks / 10)
-    return dt.isoformat()
+    return dt.astimezone().isoformat()
 
 def _map_slot(node: dict):
     raw = _getp(node, ["RawData", "value"]) or {}

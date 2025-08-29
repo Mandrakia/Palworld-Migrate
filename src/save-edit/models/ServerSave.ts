@@ -38,11 +38,15 @@ export class ServerSave extends JsonWrapper {
   }
 
  get Timestamp(): Date {
-    return this.ticksToDate(this.getPath(["properties","Timestamp","value"]));
+    const utcDate = this.ticksToDate(this.getPath(["properties","Timestamp","value"]));
+    // Convert UTC to local time by adjusting for timezone offset
+    return new Date(utcDate.getTime() - (utcDate.getTimezoneOffset() * 60000));
   }
 
   set Timestamp(value: Date) {
-    this.setPath(["properties","Timestamp","value"], this.dateToTicks(value));
+    // Convert local time to UTC before storing
+    const utcValue = new Date(value.getTime() + (value.getTimezoneOffset() * 60000));
+    this.setPath(["properties","Timestamp","value"], this.dateToTicks(utcValue));
   }
 
   get CharacterContainers(): CharacterContainer[] {
